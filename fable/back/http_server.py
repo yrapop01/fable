@@ -1,8 +1,10 @@
+import os
 from sanic import Sanic
-from back.end import main
+from fable.back.end import main
+from fable import front
 
 app = Sanic()
-app.static('/', 'front/')
+app.static('/', os.path.dirname(front.__file__))
 
 @app.websocket('/')
 async def serve(request, ws):

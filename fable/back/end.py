@@ -2,8 +2,8 @@ import json
 import asyncio
 import logging
 import websockets
-from utils.logger import log
-from back.shell import acquire, release
+from fable.utils.logger import log
+from fable.back.shell import acquire, release
 
 _log = log(__name__)
 

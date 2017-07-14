@@ -1,8 +1,8 @@
 import asyncio
 import signal
 import os
-from back.repl_proto import Events, encode, decode
-from utils.logger import log
+from fable.back.repl_proto import Events, encode, decode
+from fable.utils.logger import log
 
 _REPL = 'back/repl.py'
 
