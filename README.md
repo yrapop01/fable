@@ -1,2 +1,2 @@
-# fable
+# Fable
 Literate Programming Toolkit
