@@ -182,7 +182,7 @@ function Cell(anchor, position, notebook) {
         self.outputNode.innerHTML += answer;
     }
 
-    self.clear = function(answer) {
+    self.clear = function() {
         self.outputNode.style.display = 'none';
         self.outputNode.innerText = '';
     }

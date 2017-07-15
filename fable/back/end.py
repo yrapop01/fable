@@ -2,6 +2,7 @@ import json
 import asyncio
 import logging
 import websockets
+from datetime import datetime
 from fable.utils.logger import log
 from fable.back.shell import acquire, release
 
@@ -25,15 +26,17 @@ async def recv(ws):
     action, value = json.loads(data)
     return action, value
 
-async def run_code(shell, ids, code):
-    async with shell.lock:
-        await shell.run(code)
+async def run_code(shell, ids, code, delay=1):
+    try:
+        async with shell.lock:
+            await shell.run(code)
+            ended = False
+            while not ended:
+                message, ended = await shell.readout()
+                await send(shell.user, 'out', {'ids': ids, 'messages': [message]})
 
-        while True:
-            event, data = await shell.readline()
-            await send(shell.user, event, {'ids': ids, 'data': data})
-            if event == 'ended':
-                break
+    except Exception as e:
+        _log.exception(e)
 
 async def main(ws):
     shell = None

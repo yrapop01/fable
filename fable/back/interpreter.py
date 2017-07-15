@@ -39,21 +39,27 @@ def print_val(value):
         print(f.getvalue(), end='')
 
 class Interpreter:
-    def __init__(self, files, html):
+    def __init__(self, files, html, log):
         self.files = files
-        self.ii = code.InteractiveInterpreter({'__name__': '__lit__'})
+        self.log = log
+        self.var = {}
 
     def _compile_and_run(self, code, filename):
+        self.log.info('I0')
         try:
             c = compile(code, filename, mode='exec')
-            self.ii.runcode(c)
-        except (Exception, KeyboardInterrupt):
+            exec(c, self.var, self.var)
+        except Exception:
             print_exc()
+        except KeyboardInterrupt:
+            self.log.info('KI')
+            print_exc()
+            self.log.info('KI2')
 
     def run(self, code, filename='litell'):
         code, expr = save_last_expr(code, '__lit_expr__')
         if expr:
-            self.ii.locals['__lit_expr__'] = None
+            self.var['__lit_expr__'] = None
 
         try:
             sys.stdin = self.files[0]
@@ -61,10 +67,12 @@ class Interpreter:
             sys.stderr = self.files[2]
 
             self._compile_and_run(code, filename)
+            self.log.info('DONE')
             if expr:
-                print_val(self.ii.locals['__lit_expr__'])
-                self.ii.locals['__lit_expr__'] = None
+                print_val(self.var['__lit_expr__'])
         finally:
             sys.stderr = sys.__stderr__
             sys.stdout = sys.__stdout__
             sys.stdin = sys.__stdin__
+
+        self.log.info('DONE2')

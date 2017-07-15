@@ -129,8 +129,6 @@
                 self.remove = function(guid) {
                     var i;
                     if (self.current && guid == self.current[0].guid) {
-                        self.current[0].change_status('Idle');
-                        self.current = null;
                         return true;
                     }
                     for (i in self.tasks) {
@@ -151,7 +149,7 @@
             }
 
             function Connection() {
-                var self = {events: {}};
+                var self = {events: {}, messages: []};
 
                 self.open = function() {
                     self.ws = new WebSocket('ws://' + document.domain + ':' + location.port);
@@ -191,11 +189,9 @@
                         let data = JSON.parse(event.data);
                         let code = data['code'];
                         let value = data['value'];
-                        let ids = value['ids'];
-                        let message = value['data'];
 
                         if (code in self.events)
-                            self.events[code](ids, message);
+                            self.events[code](value);
                 };
 
                 self.onclose = function(event) {
@@ -203,15 +199,6 @@
                 };
  
                 return self;
-            }
-
-            function escapeHTML(unsafe) {
-                return unsafe
-                     .replace(/&/g, "&amp;")
-                     .replace(/</g, "&lt;")
-                     .replace(/>/g, "&gt;")
-                     .replace(/"/g, "&quot;")
-                     .replace(/'/g, "&#039;");
             }
 
             var notebook = Notebook(document.getElementById('container'), {});
@@ -224,29 +211,38 @@
                     conn.send(["run", current]);
             }
 
-            function output(guid, text, cls=null) {
-                if (cls)
-                    text = "<span class=\"" + cls +"\" style=\"white-space: pre\">" + escapeHTML(text) + "</span>"
-                if (guid in notebook.cells)
-                    notebook.cells[guid].write(text);
+            function output(text, cls) {
+                return "<span class=\"" + cls +"\" style=\"white-space: pre\">" + text + "</span>";
             }
 
             conn.events.opened = function() {
                 notebook.build();
             }
 
-            conn.events.started = tasks.started;
-            conn.events.ended = function(info) {
-                tasks.ended(info);
-                submit();
-            }
+            conn.events.out = function(value) {
+                let guid = value["ids"];
+                let messages = value["messages"];
+                var out = "";
 
-            conn.events.out = function(guid, value) {
-                output(guid, value, 'text-primary');
-            };
+                if (!(guid in notebook.cells)) {
+                    console.log('ERROR: printing to unknown cell');
+                    return;
+                }
 
-            conn.events.err = function(guid, value) {
-                output(guid, value, 'text-danger');
+                for (var i in messages) {
+                    let key = messages[i][0];
+                    if (key == 'started')
+                        tasks.started(guid);
+                    else if (key == 'ended')
+                        tasks.ended(guid);
+                    else if (key == "err")
+                        out += output(messages[i][1], "text-danger");
+                    else if (key == "out")
+                        out += output(messages[i][1], "text-primary");
+                }
+
+                if (out)
+                    notebook.cells[guid].write(out);
             };
 
             notebook.events.submit = function(s) { 

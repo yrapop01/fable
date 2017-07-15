@@ -1,5 +1,6 @@
 import asyncio
 import signal
+import html
 import os
 from fable.back.repl_proto import Events, encode, decode
 from fable.utils.logger import log
@@ -12,10 +13,11 @@ _glock = asyncio.Lock()
 _log = log(__name__)
 
 class Shell:
-    def __init__(self, name, user):
+    def __init__(self, name, user, buffsize=1024):
         self._proc = None
         self._user = user
         self._name = name
+        self._running = False
         self._lock = asyncio.Lock()
 
     async def assign(self, user, force=False):
@@ -35,11 +37,16 @@ class Shell:
                      stdout=asyncio.subprocess.PIPE,
                      stderr=asyncio.subprocess.DEVNULL)
         self._proc = await asyncio.create_subprocess_exec('python3', _REPL, **files)
+        ping = await self.ping()
+        assert ping
+
+    async def ping(self):
         await self.writeline(Events.PING)
-        event, _ = await self.readline()
-        assert event == Events.PONG
+        message, _ = await self.readline()
+        return message == Events.PONG
 
     def interrupt(self):
+        assert self._running
         os.kill(self._proc.pid, signal.SIGINT)
 
     def stop(self):
@@ -47,13 +54,14 @@ class Shell:
 
     async def run(self, code):
         await self.writeline(Events.RUN, code)
+        self._running = True
 
     async def inp(self, code):
         await self.writeline(Events.INP, code)
 
     async def writeline(self, event, data=''):
         self._proc.stdin.write((encode(event, data) + '\n').encode('utf-8'))
-        await self._proc.stdin.drain()
+        self._proc.stdin.drain()
 
     async def readline(self):
         line = await self._proc.stdout.readline()
@@ -61,8 +69,17 @@ class Shell:
             raise EOFError()
         if line.endswith(b'\n'):
             line = line[:-1]
-        event, data = decode(line.decode('utf-8'))
-        return event, data
+
+        event, value = decode(line.decode('utf-8'))
+        return event, value
+
+    async def readout(self, delay=1):
+        event, data = await self.readline()
+        ended = (event == Events.DONE)
+        if event in (Events.ERR, Events.OUT):
+            data = html.escape(data)
+
+        return (event, data), ended
 
     @property
     def name(self):
