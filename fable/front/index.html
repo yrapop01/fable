@@ -191,24 +191,11 @@
                         let data = JSON.parse(event.data);
                         let code = data['code'];
                         let value = data['value'];
+                        let ids = value['ids'];
+                        let message = value['data'];
 
-                        if (code == 'out') {
-                            let sid = value['ids'];
-                            let data = value['data'];
-                            if (self.events.print)
-                                self.events.print(sid, data);
-                        } else if (code == 'started') {
-                            let sid = value['ids'];
-                            if (self.events.started)
-                                self.events.started(sid);
-                        } else if (code == 'opened') {
-                            if (self.events.opened)
-                                self.events.opened();
-                        } else if (code == 'ended') {
-                            let sid = value['ids'];
-                            if (self.events.ended)
-                                self.events.ended(sid);
-                        }
+                        if (code in self.events)
+                            self.events[code](ids, message);
                 };
 
                 self.onclose = function(event) {
@@ -237,32 +224,29 @@
                     conn.send(["run", current]);
             }
 
+            function output(guid, text, cls=null) {
+                if (cls)
+                    text = "<span class=\"" + cls +"\" style=\"white-space: pre\">" + escapeHTML(text) + "</span>"
+                if (guid in notebook.cells)
+                    notebook.cells[guid].write(text);
+            }
+
             conn.events.opened = function() {
                 notebook.build();
             }
 
             conn.events.started = tasks.started;
-            conn.events.ended = function(sid) {
-                tasks.ended(sid);
+            conn.events.ended = function(info) {
+                tasks.ended(info);
                 submit();
             }
 
-            conn.events.print = function(sid, data) {
-                var text = '', cls;
+            conn.events.out = function(guid, value) {
+                output(guid, value, 'text-primary');
+            };
 
-                if ('out' in data) {
-                    text = escapeHTML(data['out']);
-                    cls = 'text-primary';
-                } else if ('err' in data) {
-                    text = escapeHTML(data['err']);
-                    cls = 'text-danger';
-                }
-
-                if (text) {
-                    var html = '<span class="' + cls +'" style="white-space: pre">' + text + '</span>';
-                    if (sid in notebook.cells)
-                        notebook.cells[sid].write(html);
-                }
+            conn.events.err = function(guid, value) {
+                output(guid, value, 'text-danger');
             };
 
             notebook.events.submit = function(s) { 

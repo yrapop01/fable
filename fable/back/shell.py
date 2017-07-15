@@ -35,6 +35,9 @@ class Shell:
                      stdout=asyncio.subprocess.PIPE,
                      stderr=asyncio.subprocess.DEVNULL)
         self._proc = await asyncio.create_subprocess_exec('python3', _REPL, **files)
+        await self.writeline(Events.PING)
+        event, _ = await self.readline()
+        assert event == Events.PONG
 
     def interrupt(self):
         os.kill(self._proc.pid, signal.SIGINT)
@@ -55,13 +58,11 @@ class Shell:
     async def readline(self):
         line = await self._proc.stdout.readline()
         if not line:
-            return None
+            raise EOFError()
         if line.endswith(b'\n'):
             line = line[:-1]
         event, data = decode(line.decode('utf-8'))
-        if event == Events.DONE:
-            return None
-        return {event: data}
+        return event, data
 
     @property
     def name(self):

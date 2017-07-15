@@ -4,12 +4,15 @@ class Events:
     OUT = 'out'
     ERR = 'err'
     HTML = 'html'
-    DONE = 'done'
     EXC = 'exc'
+    PONG = 'pong'
+    DONE = 'ended'
+    STARTED = 'started'
 
     # USER to REPL EVENTS
     WRT = 'wrt'
     RUN = 'run'
+    PING = 'ping'
 
 def encode(event, data=''):
     return event + ' ' + data.replace('\n', '\\n')

@@ -1,8 +1,8 @@
 import sys
 import argparse
 
-from back.interpreter import Interpreter
-from back.repl_proto import Events, encode, decode
+from fable.back.interpreter import Interpreter
+from fable.back.repl_proto import Events, encode, decode
 
 class IO:
     def __init__(self, inp, out):
@@ -30,25 +30,29 @@ class WriterWrapper:
     def write(self, data):
         self.out.write(self.prefix, data)
 
+def run(interp, code):
+    try:
+        print(encode(Events.STARTED), flush=True)
+        interp.run(code)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        print(encode(Events.DONE), flush=True)
+
 def repl():
     io = IO(sys.stdin, sys.stdout)
     files = [io, WriterWrapper(io, Events.OUT), WriterWrapper(io, Events.ERR)]
     interpreter = Interpreter(files, WriterWrapper(io, Events.HTML))
 
-    while True:
-        try:
-            for line in sys.stdin:
-                event, code = decode(line)
+    for line in sys.stdin:
+        event, code = decode(line)
 
-                if event == Events.RUN:
-                    interpreter.run(code)
-                    print(encode(Events.DONE), flush=True)
-                else:
-                    print(encode(Events.EXC, 'Unkown event %s' % event), flush=True)
-            break
-        except KeyboardInterrupt:
-            # TODO: Send READY
-            pass
+        if event == Events.RUN:
+            run(interpreter, code)
+        elif event == Events.PING:
+            print(encode(Events.PONG), flush=True)
+        else:
+            print(encode(Events.EXC, 'Unkown event %s' % event), flush=True)
 
 if __name__ == "__main__":
     repl()

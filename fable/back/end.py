@@ -27,16 +27,13 @@ async def recv(ws):
 
 async def run_code(shell, ids, code):
     async with shell.lock:
-        await send(shell.user, 'started', {'ids': ids})
         await shell.run(code)
-        data = await shell.readline()
 
-        while data is not None:
-            await send(shell.user, 'out',
-                       {'ids': ids, 'data': data})
-            data = await shell.readline()
-
-        await send(shell.user, 'ended', {'ids': ids})
+        while True:
+            event, data = await shell.readline()
+            await send(shell.user, event, {'ids': ids, 'data': data})
+            if event == 'ended':
+                break
 
 async def main(ws):
     shell = None
