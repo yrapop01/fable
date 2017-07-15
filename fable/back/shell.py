@@ -17,7 +17,7 @@ class Shell:
         self._proc = None
         self._user = user
         self._name = name
-        self._running = False
+        self._interruptable = False
         self._lock = asyncio.Lock()
 
     async def assign(self, user, force=False):
@@ -46,15 +46,16 @@ class Shell:
         return message == Events.PONG
 
     def interrupt(self):
-        assert self._running
-        os.kill(self._proc.pid, signal.SIGINT)
+        if self._interruptable:
+            os.kill(self._proc.pid, signal.SIGINT)
+            self._interruptable = False
 
     def stop(self):
         os.kill(self._proc.pid, signal.SIGTERM)
 
     async def run(self, code):
         await self.writeline(Events.RUN, code)
-        self._running = True
+        self._interruptable = True
 
     async def inp(self, code):
         await self.writeline(Events.INP, code)
@@ -75,9 +76,12 @@ class Shell:
 
     async def readout(self, delay=1):
         event, data = await self.readline()
+
         ended = (event == Events.DONE)
         if event in (Events.ERR, Events.OUT):
             data = html.escape(data)
+        if ended:
+            self._interruptable = False
 
         return (event, data), ended
 

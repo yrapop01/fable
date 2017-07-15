@@ -45,16 +45,13 @@ class Interpreter:
         self.var = {}
 
     def _compile_and_run(self, code, filename):
-        self.log.info('I0')
         try:
             c = compile(code, filename, mode='exec')
             exec(c, self.var, self.var)
         except Exception:
             print_exc()
         except KeyboardInterrupt:
-            self.log.info('KI')
             print_exc()
-            self.log.info('KI2')
 
     def run(self, code, filename='litell'):
         code, expr = save_last_expr(code, '__lit_expr__')
@@ -67,12 +64,9 @@ class Interpreter:
             sys.stderr = self.files[2]
 
             self._compile_and_run(code, filename)
-            self.log.info('DONE')
             if expr:
                 print_val(self.var['__lit_expr__'])
         finally:
             sys.stderr = sys.__stderr__
             sys.stdout = sys.__stdout__
             sys.stdin = sys.__stdin__
-
-        self.log.info('DONE2')

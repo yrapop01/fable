@@ -39,11 +39,9 @@ def run(interp, io, code):
         io.write(Events.STARTED, '', urgent=True)
         interp.run(code)
     except KeyboardInterrupt:
-        _log.info('Got interrupt request')
+        pass
     finally:
-        _log.info('OUT0')
         io.write(Events.DONE, '', urgent=True)
-        _log.info('OUT1')
 
 def repl():
     io = IO(sys.stdin, sys.stdout)
@@ -55,7 +53,6 @@ def repl():
 
         if event == Events.RUN:
             run(interpreter, io, code)
-            _log.info('RUN DONE')
         elif event == Events.PING:
             print(encode(Events.PONG), flush=True)
         else:
