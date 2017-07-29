@@ -3,10 +3,13 @@ import sys
 import configparser
 
 HOME = os.path.expanduser('~')
-CONF = os.path.join(HOME, '.fable', 'fable.conf')
+FOLD = os.path.join(HOME, '.fable')
+CONF = os.path.join(FOLD, 'fable.conf')
+INFO = os.path.join(FOLD, 'fable.info')
+LOCK = os.path.join(FOLD, 'fable.lock')
 
 VALUES = {
-    'port': 0,
+    'port': 4891,
     'host': '127.0.0.1',
     'root': ''
 }
