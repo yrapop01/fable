@@ -178,6 +178,11 @@ function Editor(editor) {
         setCurrentCursorPosition(self.node, state[1]);
     }, [self.node.innerHTML, 0]);
 
+    self.putCode = function(text) {
+        self.node.innerText = text;
+        hljs.highlightBlock(self.node);
+    }
+
     editor.addEventListener("input", function(e) {
         var pos = getCurrentCursorPosition(self.node, self.enterPressed);
 

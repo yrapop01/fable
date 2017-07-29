@@ -6,6 +6,7 @@ class Events:
     HTML = 'html'
     EXC = 'exc'
     PONG = 'pong'
+    PATH = 'path'
     DONE = 'ended'
     STARTED = 'started'
 

@@ -6,7 +6,7 @@
     <meta name="author" content="Yuri Rapoport">
     <link rel="icon" href="images/favicon.ico">
 
-    <title>Fable</title>
+    <title>Alef</title>
 
     <!-- External Libraries -->
     <script src="extern/jQuery/jquery.min.js"></script>
@@ -20,37 +20,52 @@
     <script src="js/notebook.js"></script>
 
     <style>
-        h4.logo {
+        h4 {
             display: inline !important;
         }
-        img.logo {
+        .navbar-btn, h4 {
+            font-family: 'Berkshire Swash', cursive;
+        }
+        .logo > img {
             height: 1em;
         }
         nav > ul { display: table; width: 100%; margin: 0; padding: 0}
         nav > ul > li { display: table-cell; float: none;
                         padding-left: 3px; padding-right: 3px }
+        .icon-flipped {
+            transform: scaleX(-1);
+            -moz-transform: scaleX(-1);
+            -webkit-transform: scaleX(-1);
+            -ms-transform: scaleX(-1);
+        }
     </style>
   </head>
 
   <body>
     <nav class="navbar navbar-default">
-      <ul class="container">
+      <ul>
         <li>
             <a href="#" type="button" class="btn btn-outline-primary navbar-btn"
                onclick="this.blur();">
-              <img src="images/logo_small.png" align="middle" class="logo"></img> <h4 class='logo'>fable</h4>
+              <span class="logo"><img src="images/logo_small.png" align="middle"></img><h4> Fable</h4></span>
             </a>
         </li>
         <li>
             <a href="#" type="button" class="btn btn-default navbar-btn"
                onclick="this.blur();">
-              <span class="glyphicon glyphicon-plus"></span> New
+              <span class="glyphicon glyphicon-grain"></span> New
             </a>
         </li>
         <li>
             <a href="#" type="button" class="btn btn-default navbar-btn"
                onclick="this.blur();">
-              <span class="glyphicon glyphicon-duplicate"></span> Duplicate
+              <span class="glyphicon glyphicon-share-alt icon-flipped"></span> Undo
+            </a>
+        </li>
+        <li>
+            <a href="#" type="button" class="btn btn-default navbar-btn"
+               onclick="this.blur();">
+              <span class="glyphicon glyphicon-share-alt"></span> Redo
             </a>
         </li>
         <li style="width: 100%">
@@ -59,13 +74,18 @@
                onclick="this.blur();"> Untitled
             </a>
         </li>
-       <li>
+        <li>
+            <a href="#" type="button" class="btn btn-default navbar-btn"
+               onclick="this.blur();">
+              <span class="glyphicon glyphicon-duplicate"></span> Duplicate
+            </a>
+        </li>
+        <li>
             <a href="#" type="button" class="btn btn-default navbar-btn"
                onclick="this.blur();">
               <span class="glyphicon glyphicon-bullhorn"></span> Publish
             </a>
         </li>
-   
        <li>
             <a href="#" type="button" class="btn btn-default navbar-btn"
                onclick="this.blur();">
@@ -145,6 +165,16 @@
                     return false;
                 }
 
+                self.override_running = function(cell) {
+                    if (self.current) {
+                        console.log('ERROR: Already running another cell');
+                        return;
+                    }
+
+                    self.current = [cell, cell.code];
+                    self.current[0].change_status('Running');
+                }
+
                 return self;
             }
 
@@ -185,6 +215,11 @@
                     self.send(['notebook', action]);
                 };
 
+                self.onclose = function(event) {
+                    if (self.events.disconnected)
+                        self.events.disconnected();
+                };
+
                 self.onmessage = function(event) {
                         let data = JSON.parse(event.data);
                         let code = data['code'];
@@ -194,10 +229,6 @@
                             self.events[code](value);
                 };
 
-                self.onclose = function(event) {
-                    //self.open();
-                };
- 
                 return self;
             }
 
@@ -215,39 +246,99 @@
                 return "<span class=\"" + cls +"\" style=\"white-space: pre\">" + text + "</span>";
             }
 
-            conn.events.opened = function() {
-                notebook.build();
+            function format(outputs) {
+                var out = "";
+                for (var i in outputs) {
+                    let key = outputs[i][0];
+                    let value = outputs[i][1];
+
+                    if (key == "err")
+                        out += output(value, "text-danger");
+                    else if (key == "out")
+                        out += output(value, "text-primary");
+                    else if (key == "html")
+                        out += value;
+                    else if (key == "section")
+                        out += "<h4>" + value + "</h4>";
+                    else if (key == "subsection")
+                        out += value;
+                }
+                return out;
             }
 
-            conn.events.out = function(value) {
+            conn.events.opened = function(value) {
+                let cells = value['cells'];
+                let running = value['running'];
+
+                if (!cells.length) {
+                    notebook.build();
+                    return;
+                }
+
+                var cell = null;
+                for (var i in cells) {
+                    let desc = cells[i];
+                    let guid = desc['guid'];
+
+                    if (!cell)
+                        cell = notebook.build(guid);
+                    else
+                        cell = cell.append(cell, guid);
+
+                    cell.putCode(desc['data']);
+                    cell.write(format(desc['out']));
+                    //cell.change_kind(desc['kind']);
+                }
+
+                console.log('running', running);
+                if (running)
+                    tasks.override_running(notebook.cells[running]);
+            }
+
+            conn.events.code_run = function(value) {
                 let guid = value["ids"];
-                let messages = value["messages"];
-                var out = "";
+                let msgs = value["msg"];
 
                 if (!(guid in notebook.cells)) {
                     console.log('ERROR: printing to unknown cell');
                     return;
                 }
 
-                for (var i in messages) {
-                    let key = messages[i][0];
-                    if (key == 'started')
-                        tasks.started(guid);
-                    else if (key == 'ended')
-                        tasks.ended(guid);
-                    else if (key == "err")
-                        out += output(messages[i][1], "text-danger");
-                    else if (key == "out")
-                        out += output(messages[i][1], "text-primary");
-                }
+                for (var i in msgs) {
+                    let msg = msgs[i];
+                    let key = msg[0];
 
-                if (out)
-                    notebook.cells[guid].write(out);
+                    if (key == "started") {
+                        tasks.started(guid);
+                        continue;
+                    }
+
+                    if (key == "ended") {
+                        tasks.ended(guid);
+                        continue;
+                    }
+
+                    var out = format([msg]);
+                    if (out)
+                        notebook.cells[guid].write(out);
+                }
+            };
+
+            conn.events.kind_changed = function(value) {
+                let guid = value['guid'];
+                let kind = value['kind'];
+                
+                notebook.cells[guid].change_kind(kind);
+            };
+
+            conn.events.disconnected = function() {
+                notebook.destroy();
             };
 
             notebook.events.submit = function(s) { 
                 s.clear();
                 tasks.add(s);
+                conn.send(["change", {guid: s.guid, code: s.code()}]);
                 submit();
             };
 
@@ -256,9 +347,12 @@
                     conn.send(["interrupt", null]);
             };
 
+            notebook.events.newcell = function(prev_id, cell_id) {
+                conn.send(["newcell", {prev_id: prev_id, cell_id: cell_id}]);
+            }
+
             conn.open();
         </script>
-    </div><!-- /.container -->
-    <div style="height: 20%">&nbsp;</div>
+    </div>
   </body>
 </html>

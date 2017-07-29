@@ -42,7 +42,7 @@ class Interpreter:
     def __init__(self, files, html, log):
         self.files = files
         self.log = log
-        self.var = {}
+        self.var = {'__fable_path__': {}}
 
     def _compile_and_run(self, code, filename):
         try:
@@ -53,10 +53,13 @@ class Interpreter:
         except KeyboardInterrupt:
             print_exc()
 
-    def run(self, code, filename='litell'):
-        code, expr = save_last_expr(code, '__lit_expr__')
+    def change_path(self, path):
+        self.var['__fable_path__'] = path
+
+    def run(self, code, filename='cell'):
+        code, expr = save_last_expr(code, '__fable_expr__')
         if expr:
-            self.var['__lit_expr__'] = None
+            self.var['__fable_expr__'] = None
 
         try:
             sys.stdin = self.files[0]
@@ -65,7 +68,7 @@ class Interpreter:
 
             self._compile_and_run(code, filename)
             if expr:
-                print_val(self.var['__lit_expr__'])
+                print_val(self.var['__fable_expr__'])
         finally:
             sys.stderr = sys.__stderr__
             sys.stdout = sys.__stdout__

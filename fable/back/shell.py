@@ -1,11 +1,13 @@
 import asyncio
 import signal
 import html
+import sys
 import os
 from fable.back.repl_proto import Events, encode, decode
 from fable.utils.logger import log
 
-_REPL = 'back/repl.py'
+_PYTHON = sys.executable
+_REPL = os.path.join(*os.path.split(__file__)[:-1], 'repl.py')
 
 _shells = {}
 _glock = asyncio.Lock()
@@ -17,10 +19,11 @@ class Shell:
         self._proc = None
         self._user = user
         self._name = name
-        self._interruptable = False
+        self._hidden = False
+        self._running = False
         self._lock = asyncio.Lock()
 
-    async def assign(self, user, force=False):
+    def assign(self, user, force=False):
         if self.user == user:
             _log.warning('nothing to assign')
             return True
@@ -30,13 +33,17 @@ class Shell:
 
         _log.info('assigning shell' if user is not None else 'releasing shell')
         self._user = user
+        self._hidden = True
         return True
+
+    def show(self):
+        self._hidden = False
 
     async def start(self):
         files = dict(stdin=asyncio.subprocess.PIPE,
                      stdout=asyncio.subprocess.PIPE,
                      stderr=asyncio.subprocess.DEVNULL)
-        self._proc = await asyncio.create_subprocess_exec('python3', _REPL, **files)
+        self._proc = await asyncio.create_subprocess_exec(_PYTHON, _REPL, **files)
         ping = await self.ping()
         assert ping
 
@@ -45,17 +52,32 @@ class Shell:
         message, _ = await self.readline()
         return message == Events.PONG
 
-    def interrupt(self):
-        if self._interruptable:
-            os.kill(self._proc.pid, signal.SIGINT)
-            self._interruptable = False
+    async def interrupt(self):
+        async with self._lock:
+            if self._running:
+                os.kill(self._proc.pid, signal.SIGINT)
+            else:
+                _log.error('Interrupting non running shell')
+
+    def run_msg_lock(self):
+        return self._lock
 
     def stop(self):
         os.kill(self._proc.pid, signal.SIGTERM)
 
+    async def restart(self):
+        self.stop()
+        await self.start()
+
     async def run(self, code):
+        async with self._lock:
+            assert not self._running
+            self._running = True
+           
         await self.writeline(Events.RUN, code)
-        self._interruptable = True
+
+    async def change_path(self, path):
+        await self.writeline(Events.PATH, path)
 
     async def inp(self, code):
         await self.writeline(Events.INP, code)
@@ -81,7 +103,9 @@ class Shell:
         if event in (Events.ERR, Events.OUT):
             data = html.escape(data)
         if ended:
-            self._interruptable = False
+            async with self._lock:
+                assert self._running
+                self._running = False
 
         return (event, data), ended
 
@@ -90,11 +114,9 @@ class Shell:
         return self._name
 
     @property
-    def lock(self):
-        return self._lock
-
-    @property
     def user(self):
+        if self._hidden:
+            return None
         return self._user
 
     @property

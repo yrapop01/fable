@@ -1,4 +1,5 @@
 import sys
+import json
 import argparse
 from threading import RLock
 
@@ -53,6 +54,8 @@ def repl():
 
         if event == Events.RUN:
             run(interpreter, io, code)
+        elif event == Events.PATH:
+            interpreter.change_path(json.loads(code))
         elif event == Events.PING:
             print(encode(Events.PONG), flush=True)
         else:
