@@ -54,16 +54,22 @@ let CELL_CSS = "<style type='text/css'>\n" +
 let CELL_HTML = "<div class='row top' id='top-{ID}'><div class='col-xs-12'>" +
 
                 "<div class='meta-wrapper'>" +
-                    "<span class='meta' id='controls-{ID}'>" +
-                        '<a id="play-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-play"></span></a>' +
+                    "<span class='meta' id='controls-wrapper-{ID}'>" +
+                        '<a id="start-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-play"></span></a>' +
                         '<a id="stop-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-stop"></span></a>' +
                         '<a id="add-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-plus"></span></a>' +
-                        '<a id="toggle-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-resize-small"></span></a>' +
+                        '<a id="toggle-{ID}" class="btn btn-xs btn-outline-primary">' +
+                            '<span class="glyphicon glyphicon-eye-close"></span>' +
+                            '<span class="glyphicon glyphicon-eye-open hidden"></span>' +
+                        '</a>' +
                         '<a id="clear-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-erase"></span></a>' +
                         '<a id="up-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-chevron-up"></span></a>' +
                         '<a id="down-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-chevron-down"></span></a>' +
-                        '<a id="cut-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-scissors"></span></a>' +
-                        '<a id="select-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-unchecked"></span></a>' +
+                        '<a id="del-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-trash"></span></a>' +
+                        '<a id="select-{ID}" class="btn btn-xs btn-outline-primary">' +
+                            '<span class="glyphicon glyphicon-unchecked"></span>' +
+                            '<span class="glyphicon glyphicon-check hidden"></span>' +
+                        '</a>' +
                     "</span>" +
                     "<span class='meta' id='info-{ID}'>" +
                         "<span class='info-label'>Item: </span>" +
@@ -96,6 +102,21 @@ function replaceAll(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
 }
 
+function toggleClassInside(elem, className) {
+    for (var i in elem.childNodes) {
+        var child = elem.childNodes[i];
+
+        if (!child.classList)
+            continue;
+
+        if (child.classList.contains(className)) {
+            child.classList.remove(className);
+        } else {
+            child.classList.add(className);
+        }
+    }
+}
+
 function Cell(anchor, position, notebook, cell_guid) {
 
     var self = {};
@@ -118,6 +139,7 @@ function Cell(anchor, position, notebook, cell_guid) {
     self.editorNode = document.getElementById('editor-' + self.guid);
     self.outputNode = document.getElementById('output-' + self.guid);
 
+    // Info Nodes
     self.itemNode = document.getElementById('item-' + self.guid);
     self.stateNode = document.getElementById('state-' + self.guid);
     self.orderNode = document.getElementById('order-' + self.guid);
@@ -126,14 +148,18 @@ function Cell(anchor, position, notebook, cell_guid) {
 
     // Wrapper Nodes
     self.editorWrapperNode = document.getElementById('editor-wrapper-' + self.guid);
-    self.infoNode = document.getElementById('info-' + self.guid);
 
-    // Controls
-    self.controlStopNode = document.getElementById('stop-' + self.guid);
-    self.controlSelectNode = document.getElementById('select-' + self.guid);
-    self.controlToggleNode = document.getElementById('toggle-' + self.guid);
-    self.controlClearNode = document.getElementById('clear-' + self.guid);
+    // Control Nodes
+    self.controlNodes = {
+        stop: document.getElementById('stop-' + self.guid),
+        select: document.getElementById('select-' + self.guid),
+        toggle: document.getElementById('toggle-' + self.guid),
+        clear: document.getElementById('clear-' + self.guid),
+        start: document.getElementById('start-' + self.guid),
+        del: document.getElementById('del-' + self.guid)
+    }
 
+    // Editor Init
     self.editor = Editor(self.editorNode);
 
     self.focus = function() {
@@ -233,35 +259,32 @@ function Cell(anchor, position, notebook, cell_guid) {
         }
     });
 
-    self.controlStopNode.addEventListener('click', function(e) {
+    self.controlNodes.start.addEventListener('click', function(e) {
+        if (self.notebook.events.submit)
+            self.notebook.events.submit(self);
+    });
+
+    self.controlNodes.stop.addEventListener('click', function(e) {
         if (self.notebook.events.interrupt)
             self.notebook.events.interrupt(self);
     });
 
-    self.controlSelectNode.addEventListener('click', function(e) {
-        if (self.controlSelectNode.innerHTML.includes('-unchecked'))
-            self.controlSelectNode.innerHTML = '<span class="glyphicon glyphicon-check"></span>';
-        else
-            self.controlSelectNode.innerHTML = '<span class="glyphicon glyphicon-unchecked"></span>';
+    self.controlNodes.select.addEventListener('click', function(e) {
+        toggleClassInside(self.controlNodes.select, "hidden");
     });
 
-    self.controlClearNode.addEventListener('click', function(e) {
+    self.controlNodes.clear.addEventListener('click', function(e) {
         self.clear();
     });
 
-    self.controlToggleNode.addEventListener('click', function(e) {
-        if (self.controlToggleNode.innerHTML.includes('resize-small'))
-            self.controlToggleNode.innerHTML = '<span class="glyphicon glyphicon-resize-full"></span>';
-        else
-            self.controlToggleNode.innerHTML = '<span class="glyphicon glyphicon-resize-small"></span>';
+    self.controlNodes.toggle.addEventListener('click', function(e) {
+        toggleClassInside(self.controlNodes.toggle, "hidden");
 
         self.is_minimized = !self.is_minimized;
         if (self.is_minimized) {
             self.editorWrapperNode.classList.add('hidden');
-            self.outputNode.classList.remove('well');
         } else {
             self.editorWrapperNode.classList.remove('hidden');
-            self.outputNode.classList.add('well');
         }
     });
 

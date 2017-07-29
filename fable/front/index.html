@@ -6,7 +6,7 @@
     <meta name="author" content="Yuri Rapoport">
     <link rel="icon" href="images/favicon.ico">
 
-    <title>Alef</title>
+    <title>Fable</title>
 
     <!-- External Libraries -->
     <script src="extern/jQuery/jquery.min.js"></script>
@@ -23,7 +23,7 @@
         h4 {
             display: inline !important;
         }
-        .navbar-btn, h4 {
+        .navbar-btn, h4, h1 {
             font-family: 'Berkshire Swash', cursive;
         }
         .logo > img {
@@ -38,51 +38,61 @@
             -webkit-transform: scaleX(-1);
             -ms-transform: scaleX(-1);
         }
+        .hidden {
+            display: none;
+        }
+        .disconnected {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
     </style>
+
   </head>
 
   <body>
+    <div id="fable-disconnected" class="hidden disconnected">
+        <img src="images/logo_small.png" alt="fable"></img>
+        <h1>Disconnected :(</h1>
+    </div>
+    <div id="fable-connected" class="hidden">
     <nav class="navbar navbar-default">
       <ul>
         <li>
-            <a href="#" type="button" class="btn btn-outline-primary navbar-btn"
+            <a href="#" type="button" class="btn btn-outline-primary navbar-btn" id="fable-home"
                onclick="this.blur();">
-              <span class="logo"><img src="images/logo_small.png" align="middle"></img><h4> Fable</h4></span>
-            </a>
-        </li>
-        <li>
-            <a href="#" type="button" class="btn btn-default navbar-btn"
-               onclick="this.blur();">
-              <span class="glyphicon glyphicon-grain"></span> New
-            </a>
-        </li>
-        <li>
-            <a href="#" type="button" class="btn btn-default navbar-btn"
-               onclick="this.blur();">
-              <span class="glyphicon glyphicon-share-alt icon-flipped"></span> Undo
-            </a>
-        </li>
-        <li>
-            <a href="#" type="button" class="btn btn-default navbar-btn"
-               onclick="this.blur();">
-              <span class="glyphicon glyphicon-share-alt"></span> Redo
+              <span class="logo"><img src="images/logo_small.png" alt="fable" align="middle"></img></span>
             </a>
         </li>
         <li style="width: 100%">
             <a href="#" type="button" class="btn btn-default navbar-btn"
-               style="width: 100%; text-align: center"
-               onclick="this.blur();"> Untitled
+               style="width: 100%; text-align: center" id="fable-path"> A Fable Not Yet Named
             </a>
         </li>
         <li>
-            <a href="#" type="button" class="btn btn-default navbar-btn"
-               onclick="this.blur();">
+            <a href="/index.html" target='_blank' type="button" class="btn btn-default navbar-btn">
+              <span class="glyphicon glyphicon-grain"></span> New
+            </a>
+        </li>
+        <li>
+            <a href="#" type="button" class="btn btn-default navbar-btn" id="fable-duplicate">
               <span class="glyphicon glyphicon-duplicate"></span> Duplicate
             </a>
         </li>
         <li>
-            <a href="#" type="button" class="btn btn-default navbar-btn"
-               onclick="this.blur();">
+            <a href="#" type="button" class="btn btn-default navbar-btn" id="fable-undo">
+              <span class="glyphicon glyphicon-share-alt icon-flipped"></span> Undo
+            </a>
+        </li>
+        <li>
+            <a href="#" type="button" class="btn btn-default navbar-btn" id="fable-redo">
+              <span class="glyphicon glyphicon-share-alt"></span> Redo
+            </a>
+        </li>
+        <li>
+            <a href="#" type="button" class="btn btn-default navbar-btn" id="fable-publish">
               <span class="glyphicon glyphicon-bullhorn"></span> Publish
             </a>
         </li>
@@ -182,7 +192,11 @@
                 var self = {events: {}, messages: []};
 
                 self.open = function() {
-                    self.ws = new WebSocket('ws://' + document.domain + ':' + location.port);
+                    let domain = document.domain;
+                    let path = location.pathname.split("/").slice(0, -1).join("/") + "/conn";
+                    let port = location.port;
+                    let url = "ws://" + domain + ":" + port + path;
+                    self.ws = new WebSocket(url);
 
                     self.ws.onopen = function(event) {
                         self.onopen(event);
@@ -270,6 +284,9 @@
                 let cells = value['cells'];
                 let running = value['running'];
 
+                document.getElementById("fable-disconnected").classList.add("hidden");
+                document.getElementById("fable-connected").classList.remove("hidden");
+
                 if (!cells.length) {
                     notebook.build();
                     return;
@@ -290,7 +307,6 @@
                     //cell.change_kind(desc['kind']);
                 }
 
-                console.log('running', running);
                 if (running)
                     tasks.override_running(notebook.cells[running]);
             }
@@ -333,6 +349,8 @@
 
             conn.events.disconnected = function() {
                 notebook.destroy();
+                document.getElementById("fable-connected").classList.add("hidden");
+                document.getElementById("fable-disconnected").classList.remove("hidden");
             };
 
             notebook.events.submit = function(s) { 
@@ -353,6 +371,7 @@
 
             conn.open();
         </script>
+    </div>
     </div>
   </body>
 </html>
