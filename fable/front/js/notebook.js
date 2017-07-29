@@ -42,12 +42,9 @@ let CELL_CSS = "<style type='text/css'>\n" +
                ".info-value { " +
                     "padding-right: 1em;" +
                " }\n" +
-               ".content-wrapper { " +
-               " }\n" +
-               ".cell-wrapper { " +
-                    "display: flex;" +
-                    "flex-direction: row-reverse;" +
-                    "align-items: top;" +
+               ".btn-xs { " +
+                    "padding-top: 0px !important;" +
+                    "padding-bottom: 0px !important;" +
                " }\n" +
                "div.top { " +
                     "margin-bottom: 0px !important;" +
@@ -78,13 +75,11 @@ let CELL_HTML = "<div class='row top' id='top-{ID}'><div class='col-xs-12'>" +
                     "</span>" +
                 "</div>" +
 
-                "<div class='content-wrapper'>" + 
-                    "<pre class='editor-wrapper' id='editor-wrapper-{ID}'>" +
-                    "<code class='code editor' contenteditable='true' id='editor-{ID}' spellcheck='false'></code>" +
-                    "</pre>" +
+                "<pre class='editor-wrapper' id='editor-wrapper-{ID}'>" +
+                "<code class='code editor' contenteditable='true' id='editor-{ID}' spellcheck='false'></code>" +
+                "</pre>" +
 
-                    "<div id='output-{ID}' class='well well-sm output hidden'></div>" +
-                "</div>" +
+                "<div id='output-{ID}' class='well well-sm output hidden'></div>" +
 
                 "</div></div>";
 
