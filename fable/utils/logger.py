@@ -1,4 +1,5 @@
 import traceback
+import logging
 import sys
 
 class Log:
@@ -9,6 +10,12 @@ class Log:
         traceback.print_exc()
     debug = error = info = warning = prn
 
+class DevNull(object):
+    def pass_func(self, *args, **kw):
+        pass
+    def __getattr__(self, attr):
+        return self.pass_func
+
 def log(name, filename=''):
     log = Log()
     if filename: 
@@ -16,3 +23,8 @@ def log(name, filename=''):
     else:
         log.f = None
     return log
+
+def nullStreamHandler():
+    return logging.StreamHandler(DevNull())
+
+

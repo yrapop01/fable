@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import signal
 import psutil
 import filelock
@@ -12,27 +13,28 @@ def status():
         with open(config.INFO) as f:
             info = json.loads(f.read())
         if info['pid'] >= 0 and psutil.pid_exists(info['pid']):
-            return info['pid'], info['port']
+            return info['pid'], info['url']
     except FileNotFoundError:
         return -1, -1
 
 def print_status():
     with filelock.FileLock(config.LOCK):
-        pid, port = status()
+        pid, url = status()
     if pid < 0:
         print('No running Fable processes found')
     else:
-        print('Fable runs: pid', pid, 'port', port)
+        print('Fable runs: pid', pid, 'url', url)
 
 def start():
     os.makedirs(config.FOLD, exist_ok=True)
     with filelock.FileLock(config.LOCK):
-        pid, port = status()
+        pid, url = status()
         if pid >= 0:
-            print('Fable already runs (pid ' + str(pid) + ') on port', port)
+            print('Fable already runs (pid ' + str(pid) + ') on address', url)
             return
         with open(config.INFO, 'w') as f:
-            info = f.write(json.dumps({'pid': os.getpid(), 'port': config.port}))
+            link = 'http://{0}:{1}/{2}'.format(config.host, config.port, config.root)
+            f.write(json.dumps({'pid': os.getpid(), 'url': link}))
 
     try:
         run()
@@ -43,19 +45,23 @@ def start():
 def stop():
     os.makedirs(config.FOLD, exist_ok=True)
     with filelock.FileLock(config.LOCK):
-        pid, port = status()
+        pid, _ = status()
 
         if pid < 0:
             print('Warning: no running Fable processes found')
             return
             
         try:
+            print('Sending term signal to (pid ' + str(pid) + ')')
             os.kill(pid, signal.SIGTERM)
         except OSError:
             pass
 
-        if psutil.pid_exists(pid):
-            print('Could not stop Fable (pid ' + str(pid) + ') on port', port)
+    for w in [0, 1, 4]:
+        time.sleep(w)
+        if not psutil.pid_exists(pid):
+            return
+    print('Could not stop Fable (pid ' + str(pid) + ') on port', port)
 
 def spawnDaemon(func):
     # From: https://stackoverflow.com/questions/6011235/run-a-program-from-python-and-have-it-continue-to-run-after-the-script-is-kille
