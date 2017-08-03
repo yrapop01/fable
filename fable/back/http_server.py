@@ -1,6 +1,6 @@
 import os
 import glob
-from fable.back.end import main
+from fable.back.end import main, bye
 from fable import front
 from fable import config
 from fable.utils.logger import log, nullStreamHandler
@@ -29,6 +29,10 @@ async def serve(request, ws):
 def after_start(app, loop):
     url = 'http://{0}:{1}/{2}'.format(config.host, config.port, config.root)
     _log.info('Started Fable on address ' + url)
+
+@_app.listener('before_server_stop')
+def after_end(app, loop):
+    bye()
 
 def disable_sanic_logs():
     sanic_log.log.handlers = []

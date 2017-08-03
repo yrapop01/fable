@@ -5,6 +5,7 @@ import time
 import signal
 import psutil
 import filelock
+import webbrowser
 from fable import config
 from fable.back.http_server import run
 
@@ -53,7 +54,7 @@ def stop():
             
         try:
             print('Sending term signal to (pid ' + str(pid) + ')')
-            os.kill(pid, signal.SIGTERM)
+            os.kill(pid, signal.SIGINT)
         except OSError:
             pass
 
@@ -62,6 +63,15 @@ def stop():
         if not psutil.pid_exists(pid):
             return
     print('Could not stop Fable (pid ' + str(pid) + ') on port', port)
+
+def open_browser():
+    with filelock.FileLock(config.LOCK):
+        pid, url = status()
+    if pid < 0:
+        print('No running Fable processes found')
+    else:
+        url = url.replace('0.0.0.0', 'localhost')
+        webbrowser.open_new_tab(url)
 
 def spawnDaemon(func):
     # From: https://stackoverflow.com/questions/6011235/run-a-program-from-python-and-have-it-continue-to-run-after-the-script-is-kille
@@ -95,15 +105,18 @@ def spawnDaemon(func):
     os._exit(os.EX_OK)
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ('start', 'stop', 'status'):
-        print('Usage:', sys.argv[0], 'start|stop|status [port Number] [host Number] [root String]')
+    choices = ('begin', 'end', 'status', 'browser')
+    if len(sys.argv) < 2 or sys.argv[1] not in choices:
+        print('Usage:', sys.argv[0], '|'.join(choices) + ' [port Number] [host Number] [root String]')
         return
 
-    if sys.argv[1] == 'start':
+    if sys.argv[1] == 'begin':
         spawnDaemon(start)
     elif sys.argv[1] == 'status':
         print_status()
-    else:
+    elif sys.argv[1] == 'browser':
+        open_browser()
+    elif sys.argv[1] == 'end':
         stop()
 
 

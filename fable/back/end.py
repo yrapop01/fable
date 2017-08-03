@@ -4,7 +4,7 @@ import logging
 import websockets
 from datetime import datetime
 from fable.utils.logger import log
-from fable.back.shell import acquire, release
+from fable.back.shell import acquire, release, abandon
 from fable.back import notebook
 from fable.back import minitex
 
@@ -117,3 +117,6 @@ async def main(ws):
         raise
     finally:
         await release(shell, ws)
+
+def bye():
+    abandon()

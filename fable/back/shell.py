@@ -97,7 +97,13 @@ class Shell:
         return event, value
 
     async def readout(self, delay=1):
-        event, data = await self.readline()
+        try:
+            event, data = await self.readline()
+        except EOFError:
+            async with self._lock:
+                assert self._running
+                self._running = False
+            return (Events.DONE, ''), True
 
         ended = (event == Events.DONE)
         if event in (Events.ERR, Events.OUT):
@@ -159,3 +165,7 @@ async def stop(name):
         del _shells[name]
 
     shell.stop()
+
+def abandon():
+    for shell in _shells.values():
+        shell.stop()
