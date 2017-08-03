@@ -8,6 +8,9 @@ import re
 import sys
 import io
 from fable import fab
+from fable.logs import log
+
+_log = log('backend')
 
 def save_last_expr(code, var):
     try:

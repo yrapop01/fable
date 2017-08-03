@@ -7,7 +7,7 @@ from fable.back.interpreter import Interpreter
 from fable.back.repl_proto import Events, encode, decode
 from fable.logs import log
 
-_log = log(__name__)
+_log = log('repl')
 
 class IO:
     def __init__(self, inp, out):
@@ -15,6 +15,7 @@ class IO:
         self.out = out
 
     def write(self, event, data, urgent=False):
+        _log.debug('Writing', event, len(data))
         print(encode(event, data), file=self.out, flush=urgent)
 
     def read(self, size=-1):

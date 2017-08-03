@@ -326,8 +326,9 @@
                     }
 
                     var out = format([msg]);
+                    console.log('output', out);
                     if (out)
-                        notebook.cells[guid].write(out);
+                       notebook.cells[guid].write(out);
                 }
             };
 

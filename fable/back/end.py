@@ -8,7 +8,7 @@ from fable.back.shell import acquire, release, abandon
 from fable.back import notebook
 from fable.back import minitex
 
-_log = log(__name__)
+_log = log('backend')
 
 async def send(ws, code, data=''):
     if not ws:
@@ -34,6 +34,7 @@ async def run_code(shell, ids, code, doc):
         ended = False
         while not ended:
             message, ended = await shell.readout()
+            _log.info('Message', message)
             async with shell.run_msg_lock():
                 doc.write(ids, message)
                 await notebook.save(doc)

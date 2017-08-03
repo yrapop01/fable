@@ -1,7 +1,9 @@
+import io
 from matplotlib.backend_bases import GraphicsContextBase, FigureManagerBase, FigureCanvasBase
 from matplotlib.figure import Figure
-import io
-from fable.fab.plot import show_png_data
+from fable.logs import log
+
+_log = log('fab')
 
 class FigureCanvas(FigureCanvasBase):
     pass
@@ -21,6 +23,11 @@ def new_figure_manager_given_figure(num, figure):
 
 def show(width=None, height=None):
     import matplotlib.pyplot as plt
+    from fable.fab import plot
+
     with io.BytesIO() as f:
-        plt.gcf().savefig(f, format='png', transparent=True)
-        show_png_data(f.getvalue(), width=width, height=height)
+        _log.info('generating plot svg')
+        plt.gcf().savefig(f, format='svg', transparent=True)
+        _log.info('sending plot svg')
+        plot.show_svg_data(f.getvalue(), width=width, height=height)
+        _log.info('plot svg sent')

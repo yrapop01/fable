@@ -12,7 +12,7 @@ _REPL = os.path.join(*os.path.split(__file__)[:-1], 'repl.py')
 _shells = {}
 _glock = asyncio.Lock()
 
-_log = log(__name__)
+_log = log('backend')
 
 class Shell:
     def __init__(self, name, user, buffsize=1024):
@@ -22,6 +22,7 @@ class Shell:
         self._hidden = False
         self._running = False
         self._lock = asyncio.Lock()
+        self._buff = b''
 
     def assign(self, user, force=False):
         if self.user == user:
@@ -49,7 +50,9 @@ class Shell:
 
     async def ping(self):
         await self.writeline(Events.PING)
+        _log.debug('ping sent')
         message, _ = await self.readline()
+        _log.debug('ping reply', message)
         return message == Events.PONG
 
     async def interrupt(self):
@@ -86,19 +89,25 @@ class Shell:
         self._proc.stdin.write((encode(event, data) + '\n').encode('utf-8'))
         self._proc.stdin.drain()
 
-    async def readline(self):
-        line = await self._proc.stdout.readline()
-        if not line:
-            raise EOFError()
-        if line.endswith(b'\n'):
-            line = line[:-1]
+    async def readline(self, n=2048):
+        chunk = b''
+        while b'\n' not in chunk:
+            chunk = await self._proc.stdout.read(n)
+            if not chunk:
+                raise EOFError()
+            self._buff += chunk
+
+        i = self._buff.index(b'\n')
+        line, self._buff = self._buff[:i], self._buff[i+1:]
 
         event, value = decode(line.decode('utf-8'))
+        _log.debug('read line', event, value)
         return event, value
-
+        
     async def readout(self, delay=1):
         try:
             event, data = await self.readline()
+            _log.debug('Got', event, data)
         except EOFError:
             async with self._lock:
                 assert self._running

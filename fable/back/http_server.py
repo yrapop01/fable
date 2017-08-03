@@ -2,13 +2,13 @@ import os
 import glob
 from fable import front
 from fable import config
-from fable.logs import log, handler
+from fable.logs import log, handler, shutdown
 from fable.back.end import main, bye
 from sanic import Sanic
 from sanic import log as sanic_log
 
 _app = Sanic()
-_log = log(__name__)
+_log = log('backend')
 
 def add_static(app, root, path):
     extensions = {'png', 'woff', 'woff2', 'css', 'map', 'js', 'html', 'ico', 'eot', 'ttf', 'svg'}
@@ -34,6 +34,10 @@ def after_start(app, loop):
 @_app.listener('before_server_stop')
 def after_end(app, loop):
     bye()
+
+@_app.listener('after_server_stop')
+def after_end(app, loop):
+    shutdown()
 
 def redirect_sanic_logs():
     sanic_log.log.handlers = []
