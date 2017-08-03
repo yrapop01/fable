@@ -7,6 +7,7 @@ FOLD = os.path.join(HOME, '.fable')
 CONF = os.path.join(FOLD, 'fable.conf')
 INFO = os.path.join(FOLD, 'fable.info')
 LOCK = os.path.join(FOLD, 'fable.lock')
+LOGS = os.path.join(FOLD, 'logs')
 
 VALUES = {
     'port': 4891,
@@ -26,7 +27,7 @@ def load_config(path):
 
 def load_args():
     for key, value in zip(sys.argv[1:-1], sys.argv[2:]):
-        if key in VALUES.keys():
+        if key in VALUES:
             VALUES[key] = value
 
 def assign_values():

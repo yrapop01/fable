@@ -3,7 +3,7 @@ import asyncio
 import logging
 import websockets
 from datetime import datetime
-from fable.utils.logger import log
+from fable.logs import log
 from fable.back.shell import acquire, release, abandon
 from fable.back import notebook
 from fable.back import minitex

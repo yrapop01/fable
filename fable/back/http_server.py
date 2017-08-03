@@ -1,9 +1,9 @@
 import os
 import glob
-from fable.back.end import main, bye
 from fable import front
 from fable import config
-from fable.utils.logger import log, nullStreamHandler
+from fable.logs import log, handler
+from fable.back.end import main, bye
 from sanic import Sanic
 from sanic import log as sanic_log
 
@@ -29,18 +29,21 @@ async def serve(request, ws):
 def after_start(app, loop):
     url = 'http://{0}:{1}/{2}'.format(config.host, config.port, config.root)
     _log.info('Started Fable on address ' + url)
+    print('Welcome to Fable. URL:', url, flush=True)
 
 @_app.listener('before_server_stop')
 def after_end(app, loop):
     bye()
 
-def disable_sanic_logs():
+def redirect_sanic_logs():
     sanic_log.log.handlers = []
     sanic_log.netlog.handlers = []
+    sanic_log.log.addHandler(handler('sanic'))
+    sanic_log.netlog.addHandler(handler('sanic.network'))
 
 def run():
     add_static(_app, config.root, os.path.dirname(front.__file__))
-    disable_sanic_logs()
+    redirect_sanic_logs()
     _app.run(host=config.host, port=config.port, log_config=None)
     
 if __name__ == '__main__':

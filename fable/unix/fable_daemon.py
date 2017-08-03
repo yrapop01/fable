@@ -53,7 +53,7 @@ def stop():
             return
             
         try:
-            print('Sending term signal to (pid ' + str(pid) + ')')
+            print('Sstoping term signal to (pid ' + str(pid) + ')')
             os.kill(pid, signal.SIGINT)
         except OSError:
             pass
@@ -105,18 +105,18 @@ def spawnDaemon(func):
     os._exit(os.EX_OK)
 
 def main():
-    choices = ('begin', 'end', 'status', 'browser')
+    choices = ('start', 'stop', 'status', 'browser')
     if len(sys.argv) < 2 or sys.argv[1] not in choices:
         print('Usage:', sys.argv[0], '|'.join(choices) + ' [port Number] [host Number] [root String]')
         return
 
-    if sys.argv[1] == 'begin':
+    if sys.argv[1] == 'start':
         spawnDaemon(start)
     elif sys.argv[1] == 'status':
         print_status()
     elif sys.argv[1] == 'browser':
         open_browser()
-    elif sys.argv[1] == 'end':
+    elif sys.argv[1] == 'stop':
         stop()
 
 

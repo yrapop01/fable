@@ -7,30 +7,32 @@
  */
 let CELL_CSS = "<style type='text/css'>\n" +
                "pre.editor-wrapper { " +
-                    "border-top-left-radius: 0px !important; border-top-right-radius: 0 !important;" +
-                    "border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important;" +
-                    "margin-top: 0 !important;" +
-                    "margin-bottom: 0 !important;" +
+                    "border-radius: 0 !important;" +
+                    "margin: 0 !important;" +
+                    //"background-color: #fbf1c7 !important;" +
+                    "background-color: rgba(214,219,191,1) !important;" +
                " }\n" +
                "code.editor { " +
                     "font-size: normal !important;" +
+                    //"border: 1px solid;" +
+                    //*"border-color: #e7e8c1;" +
+                    "background-color: rgba(254,255,232,1) !important;" +
                " }\n" +
                "div.output { " +
                     "border-top-left-radius: 0px !important; border-top-right-radius: 0 !important;" +
                     "border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important;" +
                     "margin-top: 0 !important;" +
                     "margin-bottom: 0 !important;" +
-                    "max-height: 50vh;" +
+                    "max-height: 100vh;" +
                     "overflow: scroll;" +
                " }\n" +
                "div.output { " +
-                    "background-color: white;" +
+                    "background-color: rgba(254,255,232,1) !important;" +
                " }\n" +
                ".hidden { " +
                     "display: none !important;" +
                " }\n" +
                ".meta-wrapper { " +
-                    "border-top-left-radius: 5px !important; border-top-right-radius: 5px !important;" +
                     "font-size: x-small !important;" +
                     "display: flex;" +
                     "flex-direction: row;" +
@@ -41,6 +43,9 @@ let CELL_CSS = "<style type='text/css'>\n" +
                " }\n" +
                ".info-value { " +
                     "padding-right: 1em;" +
+               " }\n" +
+               ".info-value, .info-label { " +
+                    "opacity: 0.8;" +
                " }\n" +
                ".btn-xs { " +
                     "padding-top: 0px !important;" +
@@ -53,11 +58,18 @@ let CELL_CSS = "<style type='text/css'>\n" +
 
 let CELL_HTML = "<div class='row top' id='top-{ID}'><div class='col-xs-12'>" +
 
-                "<div class='meta-wrapper'>" +
+                "<pre id='editor-wrapper-{ID}' class='editor-wrapper'>" +
+                "<code class='code editor' contenteditable='true' id='editor-{ID}' spellcheck='false'></code>" +
+                "</pre>" +
+
+                "<div id='output-{ID}' class='well well-sm output hidden'></div>" +
+
+                "<div class='meta-wrapper controls-bg'>" +
                     "<span class='meta' id='controls-wrapper-{ID}'>" +
-                        '<a id="start-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-play"></span></a>' +
-                        '<a id="stop-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-stop"></span></a>' +
-                        '<a id="add-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-plus"></span></a>' +
+                        '<a id="select-{ID}" class="btn btn-xs btn-outline-primary">' +
+                            '<span class="glyphicon glyphicon-unchecked"></span>' +
+                            '<span class="glyphicon glyphicon-check hidden"></span>' +
+                        '</a>' +
                         '<a id="toggle-{ID}" class="btn btn-xs btn-outline-primary">' +
                             '<span class="glyphicon glyphicon-eye-close"></span>' +
                             '<span class="glyphicon glyphicon-eye-open hidden"></span>' +
@@ -65,11 +77,10 @@ let CELL_HTML = "<div class='row top' id='top-{ID}'><div class='col-xs-12'>" +
                         '<a id="clear-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-erase"></span></a>' +
                         '<a id="up-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-chevron-up"></span></a>' +
                         '<a id="down-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-chevron-down"></span></a>' +
+                        '<a id="add-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-plus"></span></a>' +
                         '<a id="del-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-trash"></span></a>' +
-                        '<a id="select-{ID}" class="btn btn-xs btn-outline-primary">' +
-                            '<span class="glyphicon glyphicon-unchecked"></span>' +
-                            '<span class="glyphicon glyphicon-check hidden"></span>' +
-                        '</a>' +
+                        '<a id="stop-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-stop"></span></a>' +
+                        '<a id="start-{ID}" class="btn btn-xs btn-outline-primary"><span class="glyphicon glyphicon-play"></span></a>' +
                     "</span>" +
                     "<span class='meta' id='info-{ID}'>" +
                         "<span class='info-label'>Item: </span>" +
@@ -81,11 +92,7 @@ let CELL_HTML = "<div class='row top' id='top-{ID}'><div class='col-xs-12'>" +
                     "</span>" +
                 "</div>" +
 
-                "<pre class='editor-wrapper' id='editor-wrapper-{ID}'>" +
-                "<code class='code editor' contenteditable='true' id='editor-{ID}' spellcheck='false'></code>" +
-                "</pre>" +
 
-                "<div id='output-{ID}' class='well well-sm output hidden'></div>" +
 
                 "</div></div>";
 
@@ -295,7 +302,7 @@ function Notebook(container) {
     var self = {events: {}, cells: {}, container: container};
 
     self.build = function(cell_guid) {
-        var cell = Cell(container, 'beforeEnd', self, cell_guid);
+        var cell = Cell(container, 'afterBegin', self, cell_guid);
         if (self.events.newcell && !cell_guid)
             self.events.newcell(null, cell.guid);
 

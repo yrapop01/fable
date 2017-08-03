@@ -1,6 +1,6 @@
 import aiofiles
 import json
-from fable.utils.logger import log
+from fable.logs import log
 from fable.back.repl_proto import Events
 
 class Cell:

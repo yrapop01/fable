@@ -5,9 +5,9 @@ from threading import RLock
 
 from fable.back.interpreter import Interpreter
 from fable.back.repl_proto import Events, encode, decode
-from fable.utils.logger import log
+from fable.logs import log
 
-_log = log(__name__, '/tmp/fable.repl')
+_log = log(__name__)
 
 class IO:
     def __init__(self, inp, out):
@@ -46,8 +46,8 @@ def run(interp, io, code):
 
 def repl():
     io = IO(sys.stdin, sys.stdout)
-    files = [io, WriterWrapper(io, Events.OUT), WriterWrapper(io, Events.ERR)]
-    interpreter = Interpreter(files, WriterWrapper(io, Events.HTML), _log)
+    files = [io, WriterWrapper(io, Events.OUT), WriterWrapper(io, Events.ERR), WriterWrapper(io, Events.HTML)]
+    interpreter = Interpreter(files, _log)
 
     for line in sys.stdin:
         event, code = decode(line)

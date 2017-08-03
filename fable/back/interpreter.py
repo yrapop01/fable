@@ -7,6 +7,7 @@ import json
 import re
 import sys
 import io
+from fable import fab
 
 def save_last_expr(code, var):
     try:
@@ -39,10 +40,10 @@ def print_val(value):
         print(f.getvalue(), end='')
 
 class Interpreter:
-    def __init__(self, files, html, log):
+    def __init__(self, files, log):
         self.files = files
         self.log = log
-        self.var = {'__fable_path__': {}}
+        self.var = {}
 
     def _compile_and_run(self, code, filename):
         try:
@@ -53,9 +54,6 @@ class Interpreter:
         except KeyboardInterrupt:
             print_exc()
 
-    def change_path(self, path):
-        self.var['__fable_path__'] = path
-
     def run(self, code, filename='cell'):
         code, expr = save_last_expr(code, '__fable_expr__')
         if expr:
@@ -65,6 +63,7 @@ class Interpreter:
             sys.stdin = self.files[0]
             sys.stdout = self.files[1]
             sys.stderr = self.files[2]
+            fab.htmlout = self.files[3]
 
             self._compile_and_run(code, filename)
             if expr:
@@ -73,3 +72,4 @@ class Interpreter:
             sys.stderr = sys.__stderr__
             sys.stdout = sys.__stdout__
             sys.stdin = sys.__stdin__
+            fab.htmlout = fab.__htmlout__
