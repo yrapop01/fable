@@ -20,7 +20,7 @@ function createRange(node, chars, range) {
 
     if (chars.count === 0) {
         range.setEnd(node, chars.count);
-    } else if (node && chars.count >0) {
+    } else if (node && chars.count>0) {
         if (node.nodeType === Node.TEXT_NODE) {
             if (node.textContent.length < chars.count) {
                 chars.count -= node.textContent.length;
@@ -67,12 +67,11 @@ function isChildOf(node, parentNode) {
     return false;
 };
 
-function getCurrentCursorPosition(parentNode, enterPressed) {
+function getCurrentCursorPosition(parentNode) {
     var selection = window.getSelection(),
         charCount = -1,
         offset = 0,
         node;
-    var enter = false;
 
     if (!selection.focusNode || !isChildOf(selection.focusNode, parentNode))
         return charCount;
@@ -83,9 +82,6 @@ function getCurrentCursorPosition(parentNode, enterPressed) {
     if (node === parentNode)
         return node.textContent.length;
 
-    if (charCount == 0 && enterPressed)
-        charCount++;
-    
     while (node !== parentNode) {
         if (node.previousSibling) {
             node = node.previousSibling;
@@ -159,7 +155,7 @@ UndoStack.prototype.redo = function () {
 
 /*************************** Section 3: The Actual Editor *******************************/
 
-function Editor(editor) {
+function Editor(editor, language, code) {
     ENTER = 13;
     BACKSPACE = 8;
     TAB = 9;
@@ -172,6 +168,7 @@ function Editor(editor) {
     /* hack to fix weird contenteditable behavior on enters */
     self.enterPressed = false; 
     self.node = editor;
+    self.language = '';
 
     self.undo = new UndoStack(function(state) {
         self.node.innerHTML = state[0];
@@ -183,8 +180,26 @@ function Editor(editor) {
         hljs.highlightBlock(self.node);
     }
 
+    self.getCode = function(text) {
+        return self.node.innerText;
+    }
+
+    self.changeLanguage = function(language) {
+        if (self.language != '' && self.node.classList.contains(self.language))
+            self.node.classList.remove(self.language);
+        self.language = language;
+        if (self.language != '' && !self.node.classList.contains(self.language))
+            self.node.classList.add(self.language);
+    }
+
+    self.focus = function() {
+        return self.node.focus();
+    }
+
     editor.addEventListener("input", function(e) {
-        var pos = getCurrentCursorPosition(self.node, self.enterPressed);
+        var pos = getCurrentCursorPosition(self.node);
+        if (self.enterPressed)
+            pos += 1;
 
         self.node.innerText = self.node.innerText; /* remove formatting */
         hljs.highlightBlock(self.node);
@@ -227,6 +242,11 @@ function Editor(editor) {
                 self.undo.undo();
         }
     });
+
+    self.changeLanguage(language);
+    if (code && code != '') {
+        self.putCode(code);
+    }
 
     return self;
 }

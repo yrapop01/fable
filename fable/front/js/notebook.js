@@ -6,13 +6,12 @@
  * CELL CSS & HTML TEMPLATE. 
  */
 let CELL_CSS = "<style type='text/css'>\n" +
-               "pre.editor-wrapper { " +
+               ".editor-wrapper { " +
                     "border-radius: 0 !important;" +
                     "margin: 0 !important;" +
-                    //"background-color: #fbf1c7 !important;" +
                     "background-color: rgba(214,219,191,1) !important;" +
                " }\n" +
-               "code.editor { " +
+               ".editor { " +
                     "font-size: normal !important;" +
                     //"border: 1px solid;" +
                     //*"border-color: #e7e8c1;" +
@@ -61,6 +60,8 @@ let CELL_HTML = "<div class='row top' id='top-{ID}'><div class='col-xs-12'>" +
                 "<pre id='editor-wrapper-{ID}' class='editor-wrapper'>" +
                 "<code class='code editor' contenteditable='true' id='editor-{ID}' spellcheck='false'></code>" +
                 "</pre>" +
+
+                "<!--div class='editor-wrapper_1'><div class='editor-wrapper_2'><div class='code editor' id='editor-{ID}'></div></div></div-->" +
 
                 "<div id='output-{ID}' class='well well-sm output hidden'></div>" +
 
@@ -167,10 +168,10 @@ function Cell(anchor, position, notebook, cell_guid) {
     }
 
     // Editor Init
-    self.editor = Editor(self.editorNode);
+    self.editor = Editor(self.editorNode, "python", "");
 
     self.focus = function() {
-        self.editorNode.focus();
+        self.editor.focus();
     }
 
     self.detach = function() {
@@ -197,19 +198,17 @@ function Cell(anchor, position, notebook, cell_guid) {
     }
 
     self.code = function() {
-        return self.editor.node.innerText;
+        return self.editor.getCode();
     }
 
-    self.change_status = function(state) {
+    self.changeState = function(state) {
         self.state = state;
         self.stateNode.innerHTML = state;
     }
 
-    self.change_kind = function(kind) {
-        if (self.kind)
-            self.editorNode.classList.remove(kind);
-        self.kind = kind;
-        self.editorNode.classList.add(kind);
+    self.changeLanguage = function(kind) {
+        if (kind && kind != '')
+            self.editor.changeLanguage(kind);
     }
 
     self.write = function(answer) {

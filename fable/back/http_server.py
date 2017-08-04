@@ -15,6 +15,7 @@ def add_static(app, root, path):
     files = glob.glob(os.path.join(path, '**'), recursive=True)
     files = [(filename, filename[len(path)+1:]) for filename in files]
     for filename in files:
+        _log.debug('Adding static file:', filename[0])
         if filename[0].rsplit('.', 2)[-1] not in extensions:
             continue
         app.static(root + '/' + filename[1], filename[0])

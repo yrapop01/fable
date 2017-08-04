@@ -21,6 +21,13 @@
     <script src="js/notebook.js"></script>
 
     <style>
+        /* body {
+            background-image: url('images/book-145399.svg');
+            background-attachment: fixed;
+            background-position: center bottom;
+            background-repeat: no-repeat;
+            background-size: 100px 100px;
+        } */
         h4 {
             display: inline !important;
         }
@@ -67,7 +74,7 @@
         <h1>Disconnected :(</h1>
     </div>
     <div id="fable-connected" class="hidden">
-       <div class="container"><div class="controls-bg" style="border: 1px solid; border-color: silver; font-size: x-small !important; display: flex; border-top-left-radius: 5px; border-top-right-radius: 5px; justify-content: space-between; margin-bottom: 5px; margin-top: 5px">
+       <div class="container"><div class="controls-bg" style="border: 1px solid; border-color: silver; font-size: x-small !important; display: flex; border-top-left-radius: 5px; border-top-right-radius: 5px; justify-content: space-between; margin-bottom: 0px; margin-top: 5px">
             <span>
             <a href="/index.html" target='_blank' type="button" class="btn btn-sm btn-outline-primary">
               <span class="glyphicon glyphicon-grain"></span> New
@@ -112,7 +119,7 @@
                         console.log('Error: cannot execute non-idle cell');
                         return;
                     }
-                    cell.change_status('Waiting');
+                    cell.changeState('Waiting');
                     self.tasks.push([cell, cell.code()]);
                 };
 
@@ -126,7 +133,7 @@
                         return null;
                     }
                     self.current = self.tasks.shift();
-                    self.current[0].change_status('Sending');
+                    self.current[0].changeState('Sending');
                     return {ids: self.current[0].guid, code: self.current[1]};
                 };
 
@@ -135,7 +142,7 @@
                         console.log('ERROR: Running a cell not scheduled for execution');
                         return;
                     }
-                    self.current[0].change_status('Running');
+                    self.current[0].changeState('Running');
                 };
 
                 self.ended = function(guid) {
@@ -143,14 +150,14 @@
                         console.log('ERROR: Run a cell not scheduled for execution');
                         return;
                     }
-                    self.current[0].change_status('Idle');
+                    self.current[0].changeState('Idle');
                     self.current = null;
                 };
 
                 self.remove = function(guid) {
                     var i;
                     if (self.current && guid == self.current[0].guid) {
-                        self.current[0].change_status('Stopping');
+                        self.current[0].changeState('Stopping');
                         return false;
                     }
                     for (i in self.tasks) {
@@ -162,19 +169,19 @@
                         return true;
                     }
                     console.log(i);
-                    self.tasks[i][0].change_status('Idle');
+                    self.tasks[i][0].changeState('Idle');
                     self.tasks.splice(i, 1);
                     return true;
                 }
 
-                self.override_running = function(cell) {
+                self.overrideRunning = function(cell) {
                     if (self.current) {
                         console.log('ERROR: Already running another cell');
                         return;
                     }
 
                     self.current = [cell, cell.code];
-                    self.current[0].change_status('Running');
+                    self.current[0].changeState('Running');
                 }
 
                 return self;
@@ -296,11 +303,11 @@
 
                     cell.putCode(desc['data']);
                     cell.write(format(desc['out']));
-                    //cell.change_kind(desc['kind']);
+                    cell.changeLanguage(desc['kind']);
                 }
 
                 if (running)
-                    tasks.override_running(notebook.cells[running]);
+                    tasks.overrideRunning(notebook.cells[running]);
             }
 
             conn.events.code_run = function(value) {
@@ -337,7 +344,7 @@
                 let guid = value['guid'];
                 let kind = value['kind'];
                 
-                notebook.cells[guid].change_kind(kind);
+                notebook.cells[guid].changeLanguage(kind);
             };
 
             conn.events.disconnected = function() {
