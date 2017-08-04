@@ -15,7 +15,8 @@ class IO:
         self.out = out
 
     def write(self, event, data, urgent=False):
-        _log.debug('Writing', event, len(data))
+        _log.debug('Writing', event, data)
+        _log.debug('Length', event, len(data))
         print(encode(event, data), file=self.out, flush=urgent)
 
     def read(self, size=-1):
@@ -63,4 +64,8 @@ def repl():
             print(encode(Events.EXC, 'Unkown event %s' % event), flush=True)
 
 if __name__ == "__main__":
-    repl()
+    try:
+        repl()
+    except (Exception, BaseException):
+        _log.exception()
+    _log.error('Process killed')

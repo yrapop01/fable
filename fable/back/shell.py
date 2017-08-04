@@ -91,11 +91,12 @@ class Shell:
 
     async def readline(self, n=2048):
         chunk = b''
-        while b'\n' not in chunk:
-            chunk = await self._proc.stdout.read(n)
-            if not chunk:
-                raise EOFError()
-            self._buff += chunk
+        if b'\n' not in self._buff:
+            while b'\n' not in chunk:
+                chunk = await self._proc.stdout.read(n)
+                if not chunk:
+                    raise EOFError()
+                self._buff += chunk
 
         i = self._buff.index(b'\n')
         line, self._buff = self._buff[:i], self._buff[i+1:]

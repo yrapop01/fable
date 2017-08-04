@@ -150,7 +150,8 @@
                 self.remove = function(guid) {
                     var i;
                     if (self.current && guid == self.current[0].guid) {
-                        return true;
+                        self.current[0].change_status('Stopping');
+                        return false;
                     }
                     for (i in self.tasks) {
                         if (self.tasks[i][0].guid == guid)
@@ -158,12 +159,12 @@
                     }
                     if (!i || i == self.tasks.length) {
                         console.log('ERROR: Trying to remove unknown task');
-                        return false;
+                        return true;
                     }
                     console.log(i);
                     self.tasks[i][0].change_status('Idle');
                     self.tasks.splice(i, 1);
-                    return false;
+                    return true;
                 }
 
                 self.override_running = function(cell) {
@@ -353,7 +354,7 @@
             };
 
             notebook.events.interrupt = function(s) {
-                if (tasks.remove(s.guid))
+                if (!tasks.remove(s.guid))
                     conn.send(["interrupt", null]);
             };
 

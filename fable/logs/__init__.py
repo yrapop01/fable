@@ -43,9 +43,9 @@ class Logger:
     async def aerror(self, *args, **kw):
         await self.alog(logging.ERROR, *args, **kw)
 
-    async def aexception(self, e):
+    async def aexception(self):
         with io.StringIO() as f:
-            traceback.print_exc(e, file=f)
+            traceback.print_exc(file=f)
             value = f.getvalue()
         async with aiofiles.open(self.path, mode='a+') as f:
             await f.write(value)
@@ -70,9 +70,9 @@ class Logger:
     def error(self, *args, **kw):
         self.log(logging.ERROR, *args, **kw)
 
-    def exception(self, e):
+    def exception(self):
         with io.StringIO() as f:
-            traceback.print_exc(e, file=f)
+            traceback.print_exc(file=f)
             value = f.getvalue()
         with open(self.path, mode='a+') as f:
             f.write(value)

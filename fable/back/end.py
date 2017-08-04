@@ -20,8 +20,8 @@ async def send(ws, code, data=''):
     try:
         message = json.dumps({'code': code, 'value': data})
         await ws.send(message)
-    except Exception as e:
-        _log.exception(e)
+    except Exception:
+        _log.exception()
 
 async def recv(ws):
     data = await ws.recv()
@@ -41,7 +41,7 @@ async def run_code(shell, ids, code, doc):
                 await send(shell.user, 'code_run', {'ids': ids, 'msg': [message]})
     except Exception as e:
         await send(shell.user, 'code_run_error', {'ids': ids, 'error': str(e)})
-        _log.exception(e)
+        _log.exception()
 
 async def run_tex(ws, shell, guid, code, doc):
     path, messages = minitex.parse(code, doc.path)
@@ -113,8 +113,8 @@ async def main(ws):
                 await notebook.save(doc)
     except websockets.exceptions.ConnectionClosed:
         pass
-    except Exception as e:
-        _log.exception(e)
+    except Exception:
+        _log.exception()
         raise
     finally:
         await release(shell, ws)
