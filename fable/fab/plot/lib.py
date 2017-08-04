@@ -21,13 +21,20 @@ def new_figure_manager_given_figure(num, figure):
     manager = FigureManager(canvas, num)
     return manager
 
-def show(width=None, height=None):
+def show(fmt='svg', **kw):
     import matplotlib.pyplot as plt
     from fable.fab import plot
 
+    formats = ('svg', 'png')
+    if fmt not in formats:
+        raise Exception('Format must be one of: ' + ', '.join(formats))
+
     with io.BytesIO() as f:
-        _log.info('generating plot svg')
-        plt.gcf().savefig(f, format='svg', transparent=True)
-        _log.info('sending plot svg')
-        plot.show_svg_data(f.getvalue(), width=width, height=height)
-        _log.info('plot svg sent')
+        _log.info('generating plot', fmt)
+        plt.gcf().savefig(f, format=fmt, transparent=True)
+        _log.info('sending plot')
+        if fmt == 'svg':
+            plot.show_svg_data(f.getvalue(), **kw)
+        elif fmt == 'png':
+            plot.show_png_data(f.getvalue(), **kw)
+        _log.info('plot sent')

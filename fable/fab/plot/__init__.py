@@ -11,6 +11,8 @@ def show_png_data(value, width=None, height=None):
     settings = ' '.join([_format_option('width', width), _format_option('height', height)])
     htmlout.write('<img alt="plot" ' + settings + ' src="data:image/png;base64,' + text + '"></img>')
 
-def show_svg_data(value, **kw):
-    value = value[value.index(b'<svg'):]
-    htmlout.write(value.decode('utf-8').replace('\n', ' '))
+def show_svg_data(value, width=None, height=None):
+    value = value[value.index(b'<svg')+4:].decode('utf-8')
+    settings = ' '.join([_format_option('width', width), _format_option('height', height)])
+    value = '<svg ' + settings + value
+    htmlout.write(value.replace('\n', ' '))
