@@ -16,7 +16,8 @@ def status():
         if info['pid'] >= 0 and psutil.pid_exists(info['pid']):
             return info['pid'], info['url']
     except FileNotFoundError:
-        return -1, -1
+        pass
+    return -1, -1
 
 def print_status():
     with filelock.FileLock(config.LOCK):
