@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="author" content="Yuri Rapoport">
+  <meta charset="utf-8">
+
+  <title>Fable</title>
+
+  <script src="extern/jQuery/jquery.min.js"></script>
+  <link href="extern/Bootstrap/bootstrap.min.css" rel="stylesheet">
+  <script src="extern/Bootstrap/bootstrap.min.js"></script>
+
+  <link href="extern/highlight.js/highlight.min.css" rel="stylesheet">
+  <link href="extern/highlight.js/gruvbox-light.css" rel="stylesheet">
+  <script src="extern/highlight.js/highlight.min.js"></script>
+
+  <script src="js/editor.js"></script>
+  <script src="js/notebook.js"></script>
+  <link href="css/notebook.css" rel="stylesheet">
+</head>
+
+<body>
+  <template id="notebook-controls">
+      <div id="notebook-controls-{ID}" class="notebook-controls notebook-global-controls">
+        <span>
+          <a href="#" type="button" class="notebook-button">
+            <span class="glyphicon glyphicon-grain"></span> New
+          </a>
+          <a type="button" href="#" class="notebook-button" id="duplicate-{ID}">
+            <span class="glyphicon glyphicon-duplicate"></span> Duplicate
+          </button>
+          <a href="#" type="button" class="notebook-button" id="undo-{ID}">
+            <span class="glyphicon glyphicon-share-alt icon-flipped"></span> Undo
+          </a>
+          <a href="#" type="button" class="notebook-button" id="redo-{ID}">
+            <span class="glyphicon glyphicon-share-alt"></span> Redo
+          </a>
+          <a href="#" type="button" class="notebook-button" id="publish-{ID}">
+            <span class="glyphicon glyphicon-bullhorn"></span> Publish
+          </a>
+          <a href="#" type="button" class="notebook-button">
+            <span class="glyphicon glyphicon-retweet"></span> Restart
+          </a>
+          <a href="#" type="button" class="notebook-button">
+            <span class="glyphicon glyphicon-cloud-upload"></span> Save
+          </a>
+          </span>
+          <span>
+          <a href="#" type="button" class="notebook-button">
+            path-{ID}
+          </a>
+        </span>
+      </div>
+  </template>
+
+  <template id="notebook-cell">
+    <div class="row cell-top" id="cell-{ID}"><div class="col-xs-12">
+      <pre id="editor-wrapper-{ID}" class="cell-editor-wrapper"><code class="cell-editor" contenteditable="true" id="editor-{ID}" spellcheck="false"></code></pre>
+
+      <div id="output-{ID}" class="cell-output hidden"></div>
+
+      <div class="cell-meta-wrapper notebook-controls">
+        <span id="controls-wrapper-{ID}">
+          <a id="select-{ID}" class="cell-button">
+            <span class="glyphicon glyphicon-unchecked"></span>
+            <span class="glyphicon glyphicon-check hidden"></span>
+          </a>
+          <a id="toggle-{ID}" class="cell-button">
+            <span class="glyphicon glyphicon-eye-close"></span>
+            <span class="glyphicon glyphicon-eye-open hidden"></span>
+          </a>
+          <a id="clear-{ID}" class="cell-button"><span class="glyphicon glyphicon-erase"></span></a>
+          <a id="up-{ID}" class="cell-button"><span class="glyphicon glyphicon-chevron-up"></span></a>
+          <a id="down-{ID}" class="cell-button"><span class="glyphicon glyphicon-chevron-down"></span></a>
+          <a id="add-{ID}" class="cell-button"><span class="glyphicon glyphicon-plus"></span></a>
+          <a id="del-{ID}" class="cell-button"><span class="glyphicon glyphicon-trash"></span></a>
+          <a id="stop-{ID}" class="cell-button"><span class="glyphicon glyphicon-stop"></span></a>
+          <a id="start-{ID}" class="cell-button"><span class="glyphicon glyphicon-play"></span></a>
+        </span>
+        <span id="info-{ID}">
+          <span class="cell-info-label">Item: </span>
+          <span class="cell-info-value" id="item-{ID}">0</span>
+          <span class="cell-info-label">Order: </span>
+          <span class="cell-info-value" id="order-{ID}">0</span>
+          <span class="cell-info-label">State: </span>
+          <span class="cell-info-value" id="state-{ID}">Idle</span>
+        </span>
+      </div>
+    </div></div>
+  </template>
+
+  <div class="container" id="notebook-container"></div>
+
+  <script type="text/javascript">
+     var container = document.getElementById('notebook-container');
+     var controls = document.getElementById('notebook-controls').innerHTML;
+     var cell = document.getElementById('notebook-cell').innerHTML;
+
+     if (location.protocol.startsWith('file')) {
+        container.innerHTML = controls + cell;
+        Editor(document.getElementById('editor-{ID}'));
+     } else {
+        var notebook = Notebook(container, controls, cell);
+        var connection = Connection();
+        var bridge = Bridge(notebook, connection);
+
+        bridge.walk();
+     }
+  </script>
+</body>
+</html>
