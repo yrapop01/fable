@@ -17,6 +17,7 @@
     <script src="extern/highlight.js/highlight.min.js"></script>
 
     <!-- Major Imports -->
+    <link href="css/notebook.css" rel="stylesheet">
     <script src="js/editor.js"></script>
     <script src="js/notebook.js"></script>
 
@@ -76,33 +77,30 @@
     <div id="fable-connected" class="hidden">
        <div class="container"><div class="controls-bg" style="border: 1px solid; border-color: silver; font-size: x-small !important; display: flex; border-top-left-radius: 5px; border-top-right-radius: 5px; justify-content: space-between; margin-bottom: 0px; margin-top: 5px">
             <span>
-            <a href="/index.html" target='_blank' type="button" class="btn btn-sm btn-outline-primary">
+            <a href="/index.html" target='_blank' type="button" class="notebook-button">
               <span class="glyphicon glyphicon-grain"></span> New
             </a>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary" id="fable-duplicate">
+            <a type="button" href="#" class="notebook-button" id="fable-duplicate">
               <span class="glyphicon glyphicon-duplicate"></span> Duplicate
-            </a>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary" id="fable-undo">
+            </button>
+            <a href="#" type="button" class="notebook-button" id="fable-undo">
               <span class="glyphicon glyphicon-share-alt icon-flipped"></span> Undo
             </a>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary" id="fable-redo">
+            <a href="#" type="button" class="notebook-button" id="fable-redo">
               <span class="glyphicon glyphicon-share-alt"></span> Redo
             </a>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary" id="fable-publish">
+            <a href="#" type="button" class="notebook-button" id="fable-publish">
               <span class="glyphicon glyphicon-bullhorn"></span> Publish
             </a>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary"
-               onclick="this.blur();">
+            <a href="#" type="button" class="notebook-button" onclick="this.blur();">
               <span class="glyphicon glyphicon-retweet"></span> Restart
             </a>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary"
-               onclick="this.blur();">
+            <a href="#" type="button" class="notebook-button" onclick="this.blur();">
               <span class="glyphicon glyphicon-cloud-upload"></span> Save
             </a>
             </span>
             <span>
-            <a href="#" type="button" class="btn btn-sm btn-outline-primary"
-               onclick="this.blur();">
+            <a href="#" type="button" class="notebook-button" onclick="this.blur();">
                 /home/yuri/sample.fab
             </a>
             </span>
