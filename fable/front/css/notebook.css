@@ -1,0 +1,161 @@
+.notebook-section {
+    font-family: 'Berkshire Swash', cursive;
+    display: inline !important;
+}
+
+.notebook-icon-flipped {
+     transform: scaleX(-1);
+     -moz-transform: scaleX(-1);
+     -webkit-transform: scaleX(-1);
+     -ms-transform: scaleX(-1);
+}
+
+.notebook-hidden {
+    display: none;
+}
+
+.notebook-controls {
+    background: rgb(254,255,232);
+    background: linear-gradient(to bottom, rgba(254,255,232,1) 0%,rgba(214,219,191,1) 100%); 
+}
+
+.notebook-global-controls {
+    border: 1px solid; 
+    border-color: silver;
+    font-size: x-small !important; display: flex;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    justify-content: space-between;
+    margin-bottom: 0px;
+    margin-top: 5px;
+}
+
+.notebook-button, .notebook-button:visited, .notebook-button:focus {
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+    border-radius: 3px;
+    outline: 0;
+    display: inline-block;
+    margin-bottom: 0;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    touch-action: manipulation;
+    cursor: pointer;
+    user-select: none;
+    background-image: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: #337ab7;
+}
+
+.notebook-button, .notebook-button:visited, .notebook-button:focus, .notebook-button:active, .notebook-button:hover  {
+    text-decoration: none;
+}
+
+.notebook-button:hover, .notebook-button:active {
+    outline: none;
+}
+
+.notebook-button:hover {
+    color: #333;
+    outline: 0;
+}
+
+.notebook-button:active {
+    box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+    outline: 0;
+}
+
+.cell-button {
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    display: inline-block;
+    margin-bottom: 0;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    touch-action: manipulation;
+    cursor: pointer;
+    user-select: none;
+    background-image: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: #337ab7;
+}
+
+.cell-button, .cell-button:visited, .cell-button:focus, .cell-button:active, .cell-button:hover  {
+    text-decoration: none;
+}
+
+.cell-button:active, .cell-button:hover {
+    outline: 0;
+}
+
+.cell-button:hover {
+    color: #333;
+}
+
+.cell-button:active {
+    box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+}
+
+.cell-editor-wrapper {
+    border-radius: 0;
+    margin: 0;
+    background-color: rgb(214,219,191);
+}
+
+.cell-editor {
+    font-size: normal;
+    background-color: rgb(254,255,232);
+}
+
+.cell-output {
+    background-color: rgb(254,255,232);
+    max-height: 100vh;
+    overflow: scroll;
+    border-radius: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 9px;
+    min-height: 20px;
+    border: 1px solid #e3e3e3;
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.05);
+    color: #333;
+}
+
+.hidden {
+    display: none;
+}
+
+.cell-meta-wrapper {
+    font-size: x-small;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    border: 1px solid;
+    border-color: silver;
+    align-items: center;
+}
+
+.cell-info-value {
+    padding-right: 1em;
+}
+
+.cell-info-value, .cell-info-label {
+    opacity: 0.8;
+}
+
+.cell-top {
+    margin-bottom: 0;
+} 
+
+
