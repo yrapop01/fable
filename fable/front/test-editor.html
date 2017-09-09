@@ -9,6 +9,7 @@
   <script src="extern/jQuery/jquery.min.js"></script>
   <link href="extern/Bootstrap/bootstrap.min.css" rel="stylesheet">
   <script src="extern/Bootstrap/bootstrap.min.js"></script>
+  <link href="extern/font-awesome/css/font-awesome.min.css" rel="stylesheet">
 
   <link href="extern/highlight.js/highlight.min.css" rel="stylesheet">
   <link href="extern/highlight.js/gruvbox-light.css" rel="stylesheet">
@@ -76,7 +77,10 @@
           <a id="add-{ID}" class="cell-button"><span class="glyphicon glyphicon-plus"></span></a>
           <a id="del-{ID}" class="cell-button"><span class="glyphicon glyphicon-trash"></span></a>
           <a id="stop-{ID}" class="cell-button"><span class="glyphicon glyphicon-stop"></span></a>
-          <a id="start-{ID}" class="cell-button"><span class="glyphicon glyphicon-play"></span></a>
+          <a id="start-{ID}" class="cell-button">
+               <span class="glyphicon glyphicon-play"></span>
+               <span class="glyphicon glyphicon-play notebook-icon-flipped hidden"></span>
+          </a>
         </span>
         <span id="info-{ID}">
           <span class="cell-info-label">Item: </span>
@@ -97,14 +101,8 @@
      var controls = document.getElementById('notebook-controls').innerHTML;
      var cell = document.getElementById('notebook-cell').innerHTML;
 
-     if (location.protocol.startsWith('file')) {
-        Notebook(container, controls, cell).build();
-     } else {
-        var notebook = Notebook(container, controls, cell);
-        var bridge = Bridge(notebook);
-
-        bridge.connect();
-     }
+     container.innerHTML = controls + cell;
+     Editor(document.getElementById('editor-{ID}'), 'python');
   </script>
 </body>
 </html>

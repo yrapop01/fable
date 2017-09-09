@@ -67,31 +67,29 @@ function isChildOf(node, parentNode) {
     return false;
 };
 
-function getCurrentCursorPosition(parentNode) {
-    var selection = window.getSelection(),
-        charCount = -1,
-        offset = 0,
-        node;
+function getPos(parentNode) {
+    var selection = window.getSelection(), node, pos=0;
 
     if (!selection.focusNode || !isChildOf(selection.focusNode, parentNode))
-        return charCount;
+        return -1;
 
     node = selection.focusNode; 
-    charCount = selection.focusOffset;
+    if (node.nodeType == Node.TEXT_NODE)
+        pos += selection.focusOffset;
 
     if (node === parentNode)
-        return node.textContent.length;
+        return pos;
 
     while (node !== parentNode) {
         if (node.previousSibling) {
             node = node.previousSibling;
-            charCount += node.textContent.length;
+            pos += node.textContent.length;
         } else {
              node = node.parentNode;
         }
     }
 
-    return charCount;
+    return pos;
 };
 
 
@@ -160,13 +158,13 @@ function Editor(editor, language, code) {
     BACKSPACE = 8;
     TAB = 9;
     Z = 90;
+    SPACE = 32;
+    RIGHT = 39;
 
     var self = {};
 
     hljs.highlightBlock(editor);
 
-    /* hack to fix weird contenteditable behavior on enters */
-    self.enterPressed = false; 
     self.node = editor;
     self.language = '';
 
@@ -196,33 +194,41 @@ function Editor(editor, language, code) {
         return self.node.focus();
     }
 
-    editor.addEventListener("input", function(e) {
-        var pos = getCurrentCursorPosition(self.node);
-        if (self.enterPressed)
-            pos += 1;
+    self.highlight = function() {
+        var pos = getPos(self.node);
 
-        self.node.innerText = self.node.innerText; /* remove formatting */
+        var text = self.node.textContent;
+        if (text.length > 0 && !text.endsWith('\n'))
+            text += '\n';
+        
+        self.node.innerHTML = text;
+
         hljs.highlightBlock(self.node);
 
         setCurrentCursorPosition(self.node, pos);
+
+        return pos;
+    }
+
+    editor.addEventListener("input", function(e) {
+        var pos = self.highlight();
         self.undo.push([self.node.innerHTML, pos]);
-    });
-
-    editor.addEventListener("keyup", function(event) {
-        var key = event.keyCode || event.charCode;
-
-        if (key == ENTER)
-            self.enterPressed = false;
     });
 
     editor.addEventListener("keydown", function(event) {
         var key = event.keyCode || event.charCode;
 
-        if (key == ENTER)
-            self.enterPressed = true;
+        if (key == ENTER) {
+            event.preventDefault();
+            document.execCommand('insertHTML', false, '\n');
+        }
+    });
+
+    editor.addEventListener("keydown", function(event) {
+        var key = event.keyCode || event.charCode;
 
         if (key == BACKSPACE) {
-            var pos = getCurrentCursorPosition(self.node);
+            var pos = getPos(self.node);
 
             var j = editor.textContent.substring(0, pos).lastIndexOf('\n');
             var s = editor.textContent.substring(j, pos);
@@ -234,6 +240,7 @@ function Editor(editor, language, code) {
             document.execCommand('insertText', false, '    ');
             event.preventDefault();
         }
+
         if (key == Z && (event.ctrlKey || event.metaKey)) {
             event.preventDefault();
             if (event.shiftKey)

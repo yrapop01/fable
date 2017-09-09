@@ -9,11 +9,16 @@ class Events:
     PATH = 'path'
     DONE = 'ended'
     STARTED = 'started'
+    FORKED = 'forked'
+
+    # REPL <-> USER EVENTS
+    NOINT = 'noint'
 
     # USER to REPL EVENTS
     WRT = 'wrt'
     RUN = 'run'
     PING = 'ping'
+    FORK = 'fork'
 
 def encode(event, data=''):
     return event + ' ' + data.replace('\n', '\\n')

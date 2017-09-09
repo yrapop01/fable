@@ -77,12 +77,19 @@ class Logger:
         with open(self.path, mode='a+') as f:
             f.write(value)
 
+_logs = {}
 def log(name):
+    global _logs
+
     os.makedirs(config.LOGS, exist_ok=True)
     path = os.path.join(config.LOGS, name)
-    log = Logger(path)
 
-    return log
+    if name in _logs:
+        return _logs[name]
+    
+    _logs[name] = Logger(path)
+
+    return _logs[name]
 
 def handler(name):
     os.makedirs(config.LOGS, exist_ok=True)

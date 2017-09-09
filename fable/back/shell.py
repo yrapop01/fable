@@ -20,9 +20,16 @@ class Shell:
         self._user = user
         self._name = name
         self._hidden = False
-        self._running = False
         self._lock = asyncio.Lock()
         self._buff = b''
+
+        # run state
+        self._running = False
+        self._interrupting = False
+        self._nointerrupt = False
+
+        # backup process
+        self._backup_fork = -1
 
     def assign(self, user, force=False):
         if self.user == user:
@@ -45,22 +52,47 @@ class Shell:
                      stdout=asyncio.subprocess.PIPE,
                      stderr=asyncio.subprocess.DEVNULL)
         self._proc = await asyncio.create_subprocess_exec(_PYTHON, _REPL, **files)
-        ping = await self.ping()
-        assert ping
+        await self.ping()
 
     async def ping(self):
         await self.writeline(Events.PING)
         _log.debug('ping sent')
         message, _ = await self.readline()
         _log.debug('ping reply', message)
-        return message == Events.PONG
+        assert message == Events.PONG
 
     async def interrupt(self):
         async with self._lock:
-            if self._running:
-                os.kill(self._proc.pid, signal.SIGINT)
-            else:
+            if not self._running:
                 _log.error('Interrupting non running shell')
+                return
+
+            if self._interrupting:
+                _log.error('Already interrupting')
+                return
+
+            if self._nointerrupt:
+                _log.info('No interrupts stage')
+                return
+
+            self._interrupting = True
+            os.kill(self._proc.pid, signal.SIGINT)
+
+    async def unrun(self):
+        if self._backup_fork < 0:
+            await self.interrupt()
+            return
+
+        async with self._lock:
+            if self._backup_fork < 0:
+                _lof.info('Backup process dissapeared')
+                return
+
+            os.kill(self._proc.pid, signal.SIGTERM)
+            os.kill(self._backup_fork, signal.SIGUSR1)
+
+            self._proc.pid = self._backup_fork
+            self._backup_fork = -1
 
     def run_msg_lock(self):
         return self._lock
@@ -72,11 +104,18 @@ class Shell:
         self.stop()
         await self.start()
 
+    async def _backup_fork(self):
+        await self.writeline(Events.FORK)
+        event, data = await self.readline()
+        assert event == Events.FORKED
+        self._backup_pid = int(data)
+
     async def run(self, code):
         async with self._lock:
             assert not self._running
             self._running = True
-           
+
+        #await self._backup_fork()
         await self.writeline(Events.RUN, code)
 
     async def change_path(self, path):
@@ -108,20 +147,23 @@ class Shell:
     async def readout(self, delay=1):
         try:
             event, data = await self.readline()
-            _log.debug('Got', event, data)
+            if event == Events.NOINT:
+                async with self._lock:
+                    assert self._running
+                    self._nointerrupt = True
+                await self.writeline(Events.NOINT)
+                event, data = await self.readline()
         except EOFError:
-            async with self._lock:
-                assert self._running
-                self._running = False
+            # TODO: handle somehow (current state is wrong)
             return (Events.DONE, ''), True
 
-        ended = (event == Events.DONE)
+        ended = (event == Events.DONE or event.endswith(Events.FORKED) and data == '0')
         if event in (Events.ERR, Events.OUT):
             data = html.escape(data)
         if ended:
             async with self._lock:
                 assert self._running
-                self._running = False
+                self._running = self._interrupting = self._nointerrupt =  False
 
         return (event, data), ended
 

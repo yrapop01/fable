@@ -19,10 +19,10 @@ def add_static(app, root, path):
         if filename[0].rsplit('.', 2)[-1] not in extensions:
             continue
         app.static(root + '/' + filename[1], filename[0])
-        if filename[1] == 'index.html':
+        if filename[1] == 'fable.html':
             app.static(root + '/', filename[0])
 
-@_app.websocket(config.root + '/conn')
+@_app.websocket(config.root + '/ws')
 async def serve(request, ws):
     await main(ws)
 

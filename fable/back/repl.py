@@ -1,7 +1,8 @@
+import os
 import sys
 import json
+import signal
 import argparse
-from threading import RLock
 
 from fable.back.interpreter import Interpreter
 from fable.back.repl_proto import Events, encode, decode
@@ -37,14 +38,54 @@ class WriterWrapper:
     def write(self, data):
         self.out.write(self.prefix, data)
 
-def run(interp, io, code):
+def fork():
+    if os.name != 'posix':
+        return -1
+    
+    pid = os.fork()
+    if pid < 0:
+        return -1
+
+    if pid > 0:
+        return pid
+
+    # child
+    os.setsid()
+    
+    received = signal.sigwait([signal.SIGUSR1])
+    if received != signal.SIGUSR1:
+        sys.exit(os.EX_OK)
+
+    return 0
+
+def _noop(sig, frame):
+    _log.debug('SIGINT received and ignored')
+
+def _send_noint():
+    # Send no interrupts request and expect to get an ack
+
+    s = signal.getsignal(signal.SIGINT)
     try:
-        io.write(Events.STARTED, '', urgent=True)
-        interp.run(code)
-    except KeyboardInterrupt:
-        pass
+        signal.signal(signal.SIGINT, _noop)
+
+        print(encode(Events.NOINT), flush=True)
+        key, _ = decode(next(sys.stdin))
+
+        assert key == Events.NOINT
     finally:
-        io.write(Events.DONE, '', urgent=True)
+        signal.signal(signal.SIGINT, s)
+
+def run(interp, code):
+    try:
+        print(encode(Events.STARTED), flush=True)
+        interp.run(code)
+        _send_noint()
+    except KeyboardInterrupt:
+        # At most one keyboard interrupt is promised to be sent after STARTED
+        # (and 0 before STARTED)
+        pass
+
+    print(encode(Events.DONE), flush=True)
 
 def repl():
     io = IO(sys.stdin, sys.stdout)
@@ -55,11 +96,14 @@ def repl():
         event, code = decode(line)
 
         if event == Events.RUN:
-            run(interpreter, io, code)
+            run(interpreter, code)
         elif event == Events.PATH:
             interpreter.change_path(json.loads(code))
         elif event == Events.PING:
             print(encode(Events.PONG), flush=True)
+        elif event == Events.FORK:
+            pid = fork()
+            print(encode(Events.FORKED, str(pid)), flush=True)
         else:
             print(encode(Events.EXC, 'Unkown event %s' % event), flush=True)
 
@@ -68,4 +112,3 @@ if __name__ == "__main__":
         repl()
     except (Exception, BaseException):
         _log.exception()
-    _log.error('Process killed')

@@ -69,6 +69,11 @@
     outline: 0;
 }
 
+.notebook-disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 .cell-button {
     padding: 1px 5px;
     font-size: 12px;
@@ -116,6 +121,10 @@
 .cell-editor {
     font-size: normal;
     background-color: rgb(254,255,232);
+}
+
+.cell-editor:before {
+    content: "\feff ";
 }
 
 .cell-output {

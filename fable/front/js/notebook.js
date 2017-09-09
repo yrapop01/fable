@@ -2,50 +2,6 @@
  * Requires editor.js to be loaded!
  */
 
-/*
- * CELL HTML TEMPLATE. 
- */
-
-let CELL_HTML = "<div class='row cell-top' id='top-{ID}'><div class='col-xs-12'>" +
-
-                "<pre id='editor-wrapper-{ID}' class='cell-editor-wrapper'>" +
-                "<code class='cell-editor' contenteditable='true' id='editor-{ID}' spellcheck='false'></code>" +
-                "</pre>" +
-
-                "<div id='output-{ID}' class='cell-output hidden'></div>" +
-
-                "<div class='cell-meta-wrapper notebook-controls'>" +
-                    "<span id='controls-wrapper-{ID}'>" +
-                        '<a id="select-{ID}" class="cell-button">' +
-                            '<span class="glyphicon glyphicon-unchecked"></span>' +
-                            '<span class="glyphicon glyphicon-check hidden"></span>' +
-                        '</a>' +
-                        '<a id="toggle-{ID}" class="cell-button">' +
-                            '<span class="glyphicon glyphicon-eye-close"></span>' +
-                            '<span class="glyphicon glyphicon-eye-open hidden"></span>' +
-                        '</a>' +
-                        '<a id="clear-{ID}" class="cell-button"><span class="glyphicon glyphicon-erase"></span></a>' +
-                        '<a id="up-{ID}" class="cell-button"><span class="glyphicon glyphicon-chevron-up"></span></a>' +
-                        '<a id="down-{ID}" class="cell-button"><span class="glyphicon glyphicon-chevron-down"></span></a>' +
-                        '<a id="add-{ID}" class="cell-button"><span class="glyphicon glyphicon-plus"></span></a>' +
-                        '<a id="del-{ID}" class="cell-button"><span class="glyphicon glyphicon-trash"></span></a>' +
-                        '<a id="stop-{ID}" class="cell-button"><span class="glyphicon glyphicon-stop"></span></a>' +
-                        '<a id="start-{ID}" class="cell-button"><span class="glyphicon glyphicon-play"></span></a>' +
-                    "</span>" +
-                    "<span id='info-{ID}'>" +
-                        "<span class='cell-info-label'>Item: </span>" +
-                        "<span class='cell-info-value' id='item-{ID}'>0</span>" +
-                        "<span class='cell-info-label'>Order: </span>" +
-                        "<span class='cell-info-value' id='order-{ID}'>0</span>" +
-                        "<span class='cell-info-label'>State: </span>" +
-                        "<span class='cell-info-value' id='state-{ID}'>Idle</span>" +
-                    "</span>" +
-                "</div>" +
-
-
-
-                "</div></div>";
-
 function guid() {
   /* from https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript */
   function s4() {
@@ -88,7 +44,7 @@ function Cell(anchor, position, notebook, cell_guid) {
 
     notebook.cells[self.guid] = self;
 
-    var html = CELL_HTML;
+    var html = self.notebook.cellHtml;
     html = replaceAll(html, "{ID}", self.guid);
 
     anchor.insertAdjacentHTML(position, html);
@@ -101,7 +57,7 @@ function Cell(anchor, position, notebook, cell_guid) {
     self.stateNode = document.getElementById('state-' + self.guid);
     self.orderNode = document.getElementById('order-' + self.guid);
 
-    self.topNode = document.getElementById('top-' + self.guid);
+    self.topNode = document.getElementById('cell-' + self.guid);
 
     // Wrapper Nodes
     self.editorWrapperNode = document.getElementById('editor-wrapper-' + self.guid);
@@ -184,22 +140,22 @@ function Cell(anchor, position, notebook, cell_guid) {
             return;
         }
 
-        cell = self.append(self);
+        var cell = self.append();
         cell.focus();
     }
 
-    self.append = function(prev, guid) {
-        var cell = Cell(prev.topNode, 'afterEnd', prev.notebook, guid);
+    self.append = function(guid) {
+        var cell = Cell(self.topNode, 'afterEnd', self.notebook, guid);
 
-        if (prev.nextCell)
-            prev.nextCell.prevCell = cell;
+        if (self.nextCell)
+            self.nextCell.prevCell = cell;
 
-        cell.nextCell = prev.nextCell;
-        cell.prevCell = prev;
-        prev.nextCell = cell;
+        cell.nextCell = self.nextCell;
+        cell.prevCell = self;
+        self.nextCell = cell;
 
         if (self.notebook.events.newcell && !guid)
-            self.notebook.events.newcell(prev.guid, cell.guid);
+            self.notebook.events.newcell(self.guid, cell.guid);
 
         return cell;
     }
@@ -246,11 +202,19 @@ function Cell(anchor, position, notebook, cell_guid) {
     return self;
 }
 
-function Notebook(container) {
-    var self = {events: {}, cells: {}, container: container};
+function Notebook(container, controlsHtml, cellHtml) {
+    var self = {events: {},
+                cells: {},
+                container: container,
+                controlsHtml: controlsHtml,
+                cellHtml: cellHtml,
+                uuid: guid()}
+   
+    var controls = controlsHtml.replace('{ID}', self.uuid);
+    container.insertAdjacentHTML('afterBegin', controls);
 
     self.build = function(cell_guid) {
-        var cell = Cell(container, 'afterBegin', self, cell_guid);
+        var cell = Cell(container, 'beforeEnd', self, cell_guid);
         if (self.events.newcell && !cell_guid)
             self.events.newcell(null, cell.guid);
 
@@ -259,7 +223,7 @@ function Notebook(container) {
 
     self.destroy = function() {
         self.cells =  {};
-        self.container.innerHTML = '';
+        self.container.classList.add('notebook-disabled');
     }
 
     return self;
