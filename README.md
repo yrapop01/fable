@@ -1,2 +1,0 @@
-# Fable
-Literate Programming Toolkit
