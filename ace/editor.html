@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.ico">
+
+<title>Fable</title>
+<style type="text/css" media="screen">
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center; 
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+    #content {
+        width: 70%;
+    }
+    .entry {
+        width: 100%;
+         margin-bottom: 1em;
+    }
+    .editor {
+        width: 100%;
+    }
+    .output {
+    }
+</style>
+</head>
+<body>
+
+<div id="content"></div>
+
+<script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+    var editors = 0;
+    var content = document.getElementById('content');
+
+    function getValue() {
+        var s = '';
+        for (var node = content.firstChild; node; node = node.nextSibling) {
+            const v = node.getValue();
+            if (v)
+                s += '\\fablesep[' + node.id + ']' + v + '\n';
+        }
+        return s;
+    }
+
+    function save() {
+        const value = getValue();
+        console.log(value);
+    }
+
+    function run(entry) {
+        const value = getValue();
+    }
+
+    function addCell(prevEntry) {
+        var entry = document.createElement('div');
+        var editor = document.createElement('div');
+        var output = document.createElement('div');
+
+        entry.classList.add("entry");
+        editor.classList.add("editor");
+        output.classList.add("output");
+
+        editor.id = "editor" + editors;
+        entry.id = "entry" + editors;
+        editors++;
+            
+        entry.appendChild(editor);
+        entry.appendChild(output);
+
+        if (prevEntry && prevEntry.nextSibling)
+            content.insertBefore(entry, prevEntry.nextSibling)
+        else
+            content.appendChild(entry);
+
+        return {'editor': editor, 'output': output, 'entry': entry};
+    }
+
+    function addEditor(prevEntry) {
+        var cell = addCell(prevEntry);
+        var editor = ace.edit(cell.editor.id);
+
+        editor.setTheme("ace/theme/dawn");
+        editor.session.setMode("ace/mode/latex");
+        editor.setFontSize("12pt");
+        editor.renderer.setShowGutter(false);
+        editor.setShowPrintMargin(false);
+        editor.setOptions({
+            maxLines: Infinity
+        });
+	    cell.entry.focusEditor = () => {
+	        editor.focus();
+	    };
+        cell.entry.getValue = () => {
+            return editor.getValue();
+        };
+        editor.commands.addCommand({
+            name: 'run',
+            bindKey: 'shift-Enter',
+            exec: function(editor) {
+                run(cell.entry);
+                if (cell.entry.nextSibling)
+                    cell.entry.nextSibling.focusEditor();
+                else
+                    addEditor(cell.entry);
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'append',
+            bindKey: 'ctrl-=',
+            exec: function(editor) {
+                if (cell.entry.nextSibling)
+                    addEditor(cell.entry);
+                else
+                    addEditor(cell.entry);
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'next',
+            bindKey: 'ctrl-Down',
+            exec: function(editor) {
+                if (cell.entry.nextSibling)
+			       cell.entry.nextSibling.focusEditor();
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'prev',
+            bindKey: 'ctrl-Up',
+            exec: function(editor) {
+                if (cell.entry.previousSibling)
+			       cell.entry.previousSibling.focusEditor();
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'save',
+            bindKey: 'ctrl-s',
+            exec: function(editor) {
+                save();
+            },
+            readOnly: true
+        });
+        editor.focus();
+    }
+
+    addEditor(null);
+</script>
+</body>
+</html>
+
