@@ -12,7 +12,7 @@ LOGS = os.path.join(FOLD, 'logs')
 VALUES = {
     'port': 4891,
     'host': '127.0.0.1',
-    'home': '~',
+    'home': os.getcwd(),
     'exec': 'xelatex'
 }
 
