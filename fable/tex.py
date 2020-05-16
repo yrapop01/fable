@@ -92,6 +92,7 @@ def render_standalone(packages, commands, contents):
                              contents=contents)
 
     with PersistentTemporaryDirectory() as d:
+        print('fullpath', d.fullpath)
         path = os.path.join(d.fullpath, 'text.tex')
 
         with open(path, 'w') as f:
@@ -100,7 +101,6 @@ def render_standalone(packages, commands, contents):
         try:
             subprocess.check_output([config.exec, '-interaction=batchmode', 'text.tex'], cwd=d.fullpath)
         except subprocess.CalledProcessError as ex:
-            print('Error:', d.fullpath)
             return b'', latex_errors(os.path.join(d.fullpath, 'text.log'))
 
         pdf = os.path.join(d.fullpath, 'text.pdf')

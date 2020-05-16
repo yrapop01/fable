@@ -7,25 +7,34 @@
 
 <title>Fable</title>
 <style type="text/css" media="screen">
+    @import url(https://fonts.googleapis.com/css?family=Patrick+Hand+SC);
     body {
         display: flex;
+        font-family: 'Patrick Hand SC', cursive;
         justify-content: center;
         align-items: center; 
-        background-repeat: no-repeat;
-        background-attachment: fixed;
+        background: #F0F0D8;
+        color: #41403E;
+    }
+    #visible_body {
+        width: 21cm;
     }
     #content {
-        width: 70%;
+        width: 100%;
     }
     .entry {
         width: 100%;
-        margin-bottom: 1em;
     }
     .editor {
         width: 100%;
+        border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+        outline: none;
+        border: solid 2px #41403E;
     }
     .output {
-        margin: 2em;
+        margin-top: 2em;
+        margin-bottom: 2em;
+        margin-left: 2em;
     }
     .disabled {
         pointer-events: none;
@@ -34,11 +43,23 @@
     .errors {
         color: red;
     }
+    canvas {
+        box-shadow: 0px 0px 28px -1px rgba(0,0,0,0.26);
+    };
 </style>
 </head>
 <body>
-
-<div id="content"></div>
+    <div id="visible_body">
+        <h1 id="title">title</h1>
+        <div id="content"></div>
+        <h2>Shortcuts:</h2>
+        <ul>
+            <li>Shift+Enter: Run current pagelet</li>
+            <li>Ctrl+=: Add new pagelet after the current</li>
+            <li>Ctrl+Up: Move to the previous pagelet</li>
+            <li>Ctrl+Down: Move to the next pagelet</li>
+        </ul>
+    </div>
 
 <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
 <script src="pdf/pdf.js" type="text/javascript" charset="utf-8"></script>
@@ -69,6 +90,11 @@
                 fables += '%fable ' + node.id + ' 0\n';
         }
         return fables + s
+    }
+
+    function blurAll() {
+        for (var node = content.firstChild; node; node = node.nextSibling)
+            node.blurEditor();
     }
 
     function save() {
@@ -133,6 +159,9 @@
 	    cell.entry.focusEditor = () => {
 	        editor.focus();
 	    };
+	    cell.entry.blurEditor = () => {
+	        editor.blur();
+	    };
         cell.entry.getValue = () => {
             return editor.getValue();
         };
@@ -186,8 +215,11 @@
             readOnly: true
         });
 
+        //editor.setHighlightActiveLine(false);
+        cell.editor.style.background = "#F0F0D8";
+
         if (body)
-            editor.setValue(body);
+            editor.setValue(body, -1);
 
         if (focus)
             editor.focus();
@@ -241,6 +273,8 @@
 
         ws.onclose = function(event) {
             document.body.classList.add("disabled");
+            blurAll();
+            setTitle(false);
             console.log(event);
         };
 
@@ -265,7 +299,7 @@
           // Fetch the first page
           var pageNumber = 1;
           pdf.getPage(pageNumber).then(function(page) {
-            var viewport = page.getViewport({scale: 1});
+            var viewport = page.getViewport({scale: 1.5});
 
             // Prepare canvas using PDF page dimensions
             var context = canvas.getContext('2d');
@@ -297,6 +331,21 @@
         }
     }
 
+    function setTitle(connected) {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has('filename'))
+            return;
+
+        var filename = params.get('filename');
+
+        var title = document.getElementById('title');
+        var postfix = connected ? "" : " [disconnected]";
+        title.innerText = filename + postfix;
+
+        document.title = "Fable: " + filename + postfix;
+    }
+
+    setTitle(true);
     bridge();
     if (!backend)
         addEditor(null, "", true);
