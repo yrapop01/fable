@@ -1,4 +1,5 @@
 dist/*
 MANIFEST
 .ipynb_checkpoints
+sample.tex
 __pycache__

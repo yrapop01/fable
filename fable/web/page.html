@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.ico">
+
+<title>Fable</title>
+<style type="text/css" media="screen">
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center; 
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+    #content {
+        width: 70%;
+    }
+    .entry {
+        width: 100%;
+        margin-bottom: 1em;
+    }
+    .editor {
+        width: 100%;
+    }
+    .output {
+        margin: 2em;
+    }
+    .disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+    .errors {
+        color: red;
+    }
+</style>
+</head>
+<body>
+
+<div id="content"></div>
+
+<script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
+<script src="pdf/pdf.js" type="text/javascript" charset="utf-8"></script>
+<script src="pdf/pdf.js" type="text/javascript" charset="utf-8"></script>
+<script src="pdf/pdf.worker.js" type="text/javascript" charset="utf-8"></script>
+
+<script type="text/javascript" >
+    var editors = 0;
+    var content = document.getElementById('content');
+    var backend = null;
+
+    function nextId() {
+        const prevId = editors;
+        editors++;
+
+        return prevId;
+    }
+
+    function getValue() {
+        var s = '';
+        var fables = [];
+        for (var node = content.firstChild; node; node = node.nextSibling) {
+            const v = node.getValue();
+            if (v) {
+                s += v + '\n';
+                fables += '%fable ' + node.id + ' ' + (v.length + 1) + '\n';
+            } else
+                fables += '%fable ' + node.id + ' 0\n';
+        }
+        return fables + s
+    }
+
+    function save() {
+        const value = getValue();
+        if (backend)
+            backend("save", value);
+    }
+
+    function run(entry) {
+        const value = getValue();
+        if (backend)
+            backend("run " + entry.id, value);
+    }
+
+    function addCell(prevEntry) {
+        var entry = document.createElement('div');
+        var editor = document.createElement('div');
+        var output = document.createElement('div');
+        var errors = document.createElement('div');
+        var canvas = document.createElement('canvas');
+
+        entry.classList.add("entry");
+        editor.classList.add("editor");
+        output.classList.add("output");
+        errors.classList.add("errors");
+
+        canvas.width = canvas.height = 0;
+
+        id = nextId();
+        editor.id = "editor_" + id;
+        output.id = "outpit_" + id;
+        entry.id = "entry_" + id;
+        canvas.id = "canvas_" + id;
+        errors.id = "errors_" + id;
+        
+        output.appendChild(canvas);
+        output.appendChild(errors);
+
+        entry.appendChild(editor);
+        entry.appendChild(output);
+
+        if (prevEntry && prevEntry.nextSibling)
+            content.insertBefore(entry, prevEntry.nextSibling)
+        else
+            content.appendChild(entry);
+
+        return {'editor': editor, 'output': output, 'entry': entry, 'canvas': canvas};
+    }
+
+    function addEditor(prevEntry, body, focus) {
+        var cell = addCell(prevEntry, body);
+        var editor = ace.edit(cell.editor.id);
+
+        editor.setTheme("ace/theme/dawn");
+        editor.session.setMode("ace/mode/latex");
+        editor.setFontSize("12pt");
+        editor.renderer.setShowGutter(false);
+        editor.setShowPrintMargin(false);
+        editor.setOptions({
+            maxLines: Infinity
+        });
+	    cell.entry.focusEditor = () => {
+	        editor.focus();
+	    };
+        cell.entry.getValue = () => {
+            return editor.getValue();
+        };
+        editor.commands.addCommand({
+            name: 'run',
+            bindKey: 'shift-Enter',
+            exec: function(editor) {
+                run(cell.entry);
+                if (cell.entry.nextSibling)
+                    cell.entry.nextSibling.focusEditor();
+                else
+                    addEditor(cell.entry, "", true);
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'append',
+            bindKey: 'ctrl-=',
+            exec: function(editor) {
+                if (cell.entry.nextSibling)
+                    addEditor(cell.entry, "", true);
+                else
+                    addEditor(cell.entry, "", true);
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'next',
+            bindKey: 'ctrl-Down',
+            exec: function(editor) {
+                if (cell.entry.nextSibling)
+			       cell.entry.nextSibling.focusEditor();
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'prev',
+            bindKey: 'ctrl-Up',
+            exec: function(editor) {
+                if (cell.entry.previousSibling)
+			       cell.entry.previousSibling.focusEditor();
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'save',
+            bindKey: 'ctrl-s',
+            exec: function(editor) {
+                save();
+            },
+            readOnly: true
+        });
+
+        if (body)
+            editor.setValue(body);
+
+        if (focus)
+            editor.focus();
+
+        return cell.entry;
+    }
+
+    function bridge() {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has('port') || !params.has('filename'))
+            return;
+
+        var url = 'ws://127.0.0.1:' + params.get('port');
+        var filename = params.get('filename');
+
+        var ws = new WebSocket(url);
+        ws.onopen = function(event) {
+            console.log('Established ws connection :)')
+            message = [filename, 'load', ''].join('\n')
+            ws.send(message);
+        };
+
+        ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+            // JSON.stringify(obj)
+
+            console.log('Message arrived: ' + data.header)
+
+            if (data.header == "load") {
+                var prev = null;
+                for (var i = 0; i < data.body.length - 1; i++) {
+                    prev = addEditor(prev, data.body[i].slice(0, -1), false);
+                };
+                if (data.body.length > 0)
+                    addEditor(prev, data.body[data.body.length - 1].slice(0, -1), true);
+                else
+                    addEditor(prev, "", true);
+            }
+
+            if (data.header == 'pdf') {
+                const id = data.id.substr(data.id.indexOf("_") + 1);
+                var canvas = document.getElementById('canvas_' + id);
+                var pdf = data.body.pdf;
+                var errors = data.body.errors;
+
+                if (pdf)
+                    loadPdf(canvas, pdf)
+                loadErrors(id, errors);
+            }
+        };
+
+        ws.onclose = function(event) {
+            document.body.classList.add("disabled");
+            console.log(event);
+        };
+
+        ws.onerror = function(event) {
+            document.body.classList.add("disabled");
+            console.log(event);
+        }
+
+        backend = function(command, data) {
+            var message = [filename, command, data].join("\n");
+            ws.send(message);
+        };
+    }
+
+    function loadPdf(canvas, data) {
+        var lib = window['pdfjs-dist/build/pdf'];
+
+        var loadingTask = lib.getDocument({data: atob(data)});
+        loadingTask.promise.then(function(pdf) {
+          console.log('PDF loaded');
+          
+          // Fetch the first page
+          var pageNumber = 1;
+          pdf.getPage(pageNumber).then(function(page) {
+            var viewport = page.getViewport({scale: 1});
+
+            // Prepare canvas using PDF page dimensions
+            var context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            // Render PDF page into canvas context
+            var renderContext = {
+              canvasContext: context,
+              viewport: viewport
+            };
+            var renderTask = page.render(renderContext);
+            renderTask.promise.then(function () {
+              console.log('Page rendered');
+            });
+          });
+        }, function (reason) {
+          // PDF loading error
+          console.error(reason);
+        });
+    }
+
+    function loadErrors(id, errors) {
+        var element = document.getElementById('errors_' + id);
+        if (errors) {
+            element.innerText = errors;
+        } else {
+            element.innerText = '';
+        }
+    }
+
+    bridge();
+    if (!backend)
+        addEditor(null, "", true);
+</script>
+</body>
+</html>
+
