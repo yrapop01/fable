@@ -1,4 +1,4 @@
-![Fable](./fable/legacy/front/images/logo.png)
+![Fable](./legacy/front/images/logo.png)
 
 
 
