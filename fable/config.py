@@ -1,28 +1,29 @@
 import os
 import sys
-import configparser
+import json
 
 HOME = os.path.join(os.path.expanduser('~'), '.config')
 FOLD = os.path.join(HOME, 'fable')
-CONF = os.path.join(FOLD, 'fable.conf')
-INFO = os.path.join(FOLD, 'fable.info')
-LOCK = os.path.join(FOLD, 'fable.lock')
-LOGS = os.path.join(FOLD, 'logs')
+CONF = os.path.join(FOLD, 'conf.json')
 
 VALUES = {
     'port': 4891,
     'host': '127.0.0.1',
     'home': os.getcwd(),
-    'exec': 'xelatex'
+    'exec': 'xelatex',
+    'bibl': '',
+    'args': '-shell-escape'
 }
 
 def load_config(path):
     try:
-        parser = configparser.ConfigParser()
-        parser.read(path)
-        for key in VALUES.keys():
-            if key in parser:
-                VALUES[key] = parser[key]
+        with open(path) as f:
+            conf = json.load(f)
+        for key in conf:
+            if key in VALUES:
+                VALUES[key] = conf[key]
+            else:
+                print('Unrecognized configuration key', key, flush=True)
     except FileNotFoundError:
         pass
 

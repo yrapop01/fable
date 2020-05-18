@@ -1,37 +1,57 @@
 import os
 import json
+import shutil
 import tempfile
 import subprocess
 from fable import config
+import pygments
+
+MAGIC = "%FABLEMAGIC"
+PREFIX = '\n%FABLE:'
+HEADER = PREFIX + 'NEXT!\n'
 
 class NotBalanced(Exception):
     pass
 
-def split(data):
-    entries = []
-    sumlen = 0
-    while data.startswith('%fable'):
-        entry, data = data.split('\n', maxsplit=1)
-        _, entry_id, entry_len_str = entry.split()
-        entry_len = int(entry_len_str)
-        entries.append((sumlen, entry_len, entry_id))
-        sumlen += entry_len
+def split_escaped(data):
+    if not data.startswith(MAGIC + HEADER):
+        return [data]
 
-    return entries, data
+    entries = data.split(HEADER)[1:]
+    undo_escape = [entry.replace(PREFIX + PREFIX, PREFIX) for entry in entries]
 
-def fables(path):
+    return undo_escape
+
+def split_unescaped(data):
+    lengths, content = data.split('\n', maxsplit=1)
+
+    fables = []
+    cumsum = 0
+    ns = [int(s) for s in lengths.split(',')]
+    for n in ns:
+        fables.append(content[cumsum:cumsum + n])
+        cumsum += n
+
+    return fables
+
+def load(path):
     try:
         with open(path, 'r') as f:
             data = f.read()
     except FileNotFoundError:
         return []
     
-    entries, data = split(data)
-    return [data[i:i + n] for i, n, _ in entries]
+    return split_escaped(data)
 
 def save(path, data):
+    fables = split_unescaped(data)
+
+    body = MAGIC
+    for fable in fables:
+        body += HEADER + fable.replace(PREFIX, PREFIX + PREFIX)
+
     with open(path, 'w') as f:
-        f.write(data)
+        f.write(body)
 
 def reduce_packages(body):
     packages = []
@@ -43,27 +63,208 @@ def reduce_packages(body):
     return packages
 
 def reduce_commands(body):
+    groups = group_pipeline(token_pipeline(body))
     commands = []
 
-    for line in body.splitlines():
-        if line.startswith('\\newcommand') or line.startswith('\\renewcommand'):
-            commands.append(line)
+    KEEP = {'setcopyright', 'acmYear', 'acmDOI', 'acmConference',
+            'acmBooktitle', 'acmPrice', 'acmISBN', 'author', 'email', 'newcommand',
+            'renewcommand', 'AtBeginDocument', 'endinput', 'ccsdesc', 'keywords', 'title'}
+
+    ENVIR = {'abstract'}
+
+    for group in groups:
+        if group[0].startswith('\\') and group[0][1:] in KEEP:
+            commands.append(''.join(group))
+        if len(group) > 2 and group[0] == '\\begin' and group[1][0] == '{' and group[1][-1] == '}' and group[1][1:-1] in ENVIR:
+            commands.append(''.join(group))
 
     return commands
 
-def run(data, entry_id):
-    entries, data = split(data)
-    packages = []
+def comments(s):
+    comment = False
+    for c in s:
+        if c == '%':
+            comment = True
+        if not comment:
+            yield c
+        if c == '\n':
+            comment = False
+
+def macros(s):
+    name = ''
+    for c in s:
+        if not name and c != '\\':
+            yield c
+            continue
+        if name == '\\' and (c == '\\' or c in '{}<>|'):
+            yield name + c
+            name = ''
+            continue
+        if name and c.isalpha():
+            name += c
+            continue
+        if name:
+            yield name
+            name = ''
+        if c == '\\':
+            name = c
+        else:
+            yield c
+    if name:
+        yield name
+
+def brackets(INC, DEC):
+    def match(s):
+        name = ''
+        count = 0
+        for c in s:
+            if name:
+                name += c
+                if c == DEC:
+                    count -= 1
+                    if count == 0:
+                        yield name
+                        name = ''
+                if c == INC:
+                    count += 1
+                continue
+            if not name and c == INC:
+                count += 1
+                name = c
+                continue
+            yield c
+
+    return match
+
+curly = brackets('{', '}')
+square = brackets('[', ']')
+
+def filt_tokens(tokens, s):
+    for c in s:
+        if c in tokens:
+            continue
+        yield c
+
+def verb(s):
+    token = ''
+    prev = ''
+    for c in s:
+        if prev == '\\verb':
+            token = prev + c
+            prev = ''
+            continue
+        if not token:
+            if prev:
+                yield prev
+            prev = c
+            continue
+        if c == '|':
+            yield token + c
+            token = ''
+            continue
+        token += c
+
+    assert not token and prev != '\\verb'
+    yield prev
+
+def join_commands(s):
+    prev = ''
+    opt = []
+    req = []
+    for c in s:
+        if len(prev) > 1 and prev[0] == '\\' and prev[1].isalpha():
+            if len(c) >= 2 and c[0] == '{' and c[-1] == '}':
+                req.append(c)
+                continue
+            if len(req) == 0 and len(c) >= 2 and c[0] == '[' and c[-1] == ']':
+                opt.append(c)
+                continue
+
+            yield [prev] + opt + req
+            prev = c
+            opt = []
+            req = []
+            continue
+
+        if prev:
+            yield [prev]
+        prev = c
+    if prev:
+        yield [prev] + opt + req
+
+def newcommand(s):
+    prev = []
+    for c in s:
+        if prev and prev[0] in {'\\newcommand' or '\\renewcommand'}:
+            yield prev + c
+            prev = []
+            continue
+        if prev:
+            yield prev
+        prev = c
+    if prev:
+        yield prev
+
+def join_envirs(s):
+    envir = []
+    count = 0
+
+    for c in s:
+        if c[0] == '\\begin':
+            envir.extend(c)
+            count += 1
+            continue
+        if count > 0:
+            envir.extend(c)
+            if c[0] == '\\end':
+                count -= 1
+                if count == 0:
+                    yield envir
+                    envir = []
+            continue
+        yield c
+
+def token_pipeline(body):
+    return filt_tokens({'\\begin{document}', '\\end{document}'}, square(curly(verb(macros(comments(body))))))
+
+def group_pipeline(tokens):
+    return join_envirs(newcommand(join_commands(tokens)))
+
+def is_blank(body):
+    envirs = group_pipeline(token_pipeline(body))
+
+    SKIP_ENVIR = ['CCSXML', 'abstract']
+    SKIP_CMD = {'documentclass', 'setcopyright', 'acmYear', 'acmDOI', 'acmConference',
+                'acmBooktitle', 'acmPrice', 'acmISBN', 'author', 'email', 'newcommand',
+                'renewcommand', 'AtBeginDocument', 'endinput', 'ccsdesc', 'keywords',
+                'title', 'usepackage', 'fxsetup'}
+    for env in envirs:
+        if len(env) > 2 and env[0] == '\\begin' and env[1][0] == '{' and env[1][-1] == '}' and env[1][1:-1] in SKIP_ENVIR:
+            continue
+        if env[0].startswith('\\') and env[0][1:] in SKIP_CMD:
+            continue
+        if all(not s.strip() for s in env):
+            continue
+        return False
+
+    return True
+
+def run(data, entry_index):
+    entries = split_unescaped(data)
+    packages = ['\\usepackage{fancyvrb}', '\\usepackage{color}']
     commands = []
 
-    for i, n, _id in entries:
-        contents = data[i:i + n]
+    for i, contents in enumerate(entries):
+        if i == entry_index:
+            if is_blank(contents):
+                return b'', ''
+            return render_standalone(packages, commands, contents)
         packages += reduce_packages(contents)
         commands += reduce_commands(contents)
-        if entry_id == _id:
-            return render_standalone(packages, commands, contents)
 
-class PersistentTemporaryDirectory:
+    raise Exception(f'Entry with id {entry_id} was not found')
+
+class PersistentDirectory:
     def __init__(self, *args, **kw):
         self.fullpath = tempfile.mkdtemp(*args, **kw)
 
@@ -73,12 +274,30 @@ class PersistentTemporaryDirectory:
     def __exit__(self, *args, **kw):
         return self
 
+def tempdir(*args, delete=False, **kw):
+    if delete:
+        return tempfile.TemporaryDirectory(*args, **kw)
+    return PersistentDirectory(*args, **kw)
+
 def latex_errors(path):
     try:
         with open(path) as f:
             lines = f.read().splitlines()
 
-        errors = [line for line in lines if line.startswith('!')]
+        errors = []
+        current = ''
+        for line in lines:
+            if line.startswith('!'):
+                if line[-1] == '.':
+                    errors.append(line)
+                else:
+                    current = line
+                continue
+            if current:
+                current += ' ' + line
+                if line.endswith('.'):
+                    errors.append(current)
+                    current = ''
         for error in errors:
             print(error, flush=True)
         return '\n'.join(errors)
@@ -86,21 +305,46 @@ def latex_errors(path):
         print('ERROR: LaTeX log file was not found', flush=True)
         return ''
 
+def input_files(contents):
+    INPUT = {'\\input', '\\includegraphics'}
+    files = []
+
+    try:
+        commands = join_commands(token_pipeline(contents))
+        for command in commands:
+            if command[0] in INPUT:
+                files.append(command[-1][1:-1])
+    except Exception as ex:
+        print(ex, flush=True)
+
+    return files
+
 def render_standalone(packages, commands, contents):
     text = STANDALONE.format(packages='\n'.join(packages),
                              commands='\n'.join(commands),
                              contents=contents)
 
-    with PersistentTemporaryDirectory() as d:
+    with tempdir(delete=False) as d:
         print('fullpath', d.fullpath)
         path = os.path.join(d.fullpath, 'text.tex')
+
+        files = input_files(contents)
 
         with open(path, 'w') as f:
             f.write(text)
 
+        if config.bibl:
+            files.append(config.bibl)
+
+        home = os.path.expanduser(config.home)
+        for name in files:
+            src = os.path.join(home, name)
+            dst = os.path.join(d.fullpath, name)
+            os.symlink(src, dst)
         try:
-            subprocess.check_output([config.exec, '-interaction=batchmode', 'text.tex'], cwd=d.fullpath)
+            subprocess.check_output([config.exec, '-interaction=batchmode', config.args, 'text.tex'], cwd=d.fullpath)
         except subprocess.CalledProcessError as ex:
+            print('LaTeX returned non zero code', flush=True)
             return b'', latex_errors(os.path.join(d.fullpath, 'text.log'))
 
         pdf = os.path.join(d.fullpath, 'text.pdf')

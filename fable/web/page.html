@@ -9,15 +9,20 @@
 <style type="text/css" media="screen">
     @import url(https://fonts.googleapis.com/css?family=Patrick+Hand+SC);
     body {
-        display: flex;
         font-family: 'Patrick Hand SC', cursive;
-        justify-content: center;
-        align-items: center; 
         background: #F0F0D8;
         color: #41403E;
     }
+    #flex {
+        display: flex;
+        justify-content: center;
+        align-items: center; 
+        width: 100%;
+        position: relative;
+    }
     #visible_body {
-        width: 21cm;
+        width: 22cm;
+        max-width: 100%;
     }
     #content {
         width: 100%;
@@ -25,11 +30,15 @@
     .entry {
         width: 100%;
     }
-    .editor {
-        width: 100%;
+    .border {
         border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
-        outline: none;
         border: solid 2px #41403E;
+        outline: none;
+        padding: 1em;
+        width: 100%;
+        min-height: 1em;
+    }
+    .editor {
     }
     .output {
         margin-top: 2em;
@@ -45,21 +54,41 @@
     }
     canvas {
         box-shadow: 0px 0px 28px -1px rgba(0,0,0,0.26);
-    };
+    }
+    #modal {
+        top: 0;
+        left: 50%;
+        position: fixed;
+        transform: translate(-50%, -0%);
+        z-index: 1;
+        border: solid 2px #41403E;
+        background: #F0F0D8;
+        display: none;
+        padding: 2em;
+        margin: 2em;
+        overflow: scroll;
+        max-height: 80%;
+    }
 </style>
 </head>
 <body>
-    <div id="visible_body">
-        <h1 id="title">title</h1>
-        <div id="content"></div>
-        <h2>Shortcuts:</h2>
-        <ul>
-            <li>Shift+Enter: Run current pagelet</li>
-            <li>Ctrl+=: Add new pagelet after the current</li>
-            <li>Ctrl+Up: Move to the previous pagelet</li>
-            <li>Ctrl+Down: Move to the next pagelet</li>
-        </ul>
+    <div id="flex">
+        <div id="visible_body">
+            <h1 id="title">title</h1>
+            <div id="content"></div>
+            <h2>Shortcuts:</h2>
+            <ul>
+                <li>Shift+Enter: Run current pagelet</li>
+                <li>Ctrl+=: Add new pagelet after the current</li>
+                <li>Ctrl+-: Remove current pagelet (must be empty)</li>
+                <li>Ctrl+Up: Move to the previous pagelet</li>
+                <li>Ctrl+Down: Move to the next pagelet</li>
+                <li>Ctrl+b: Show bibliography</li>
+                <li>Esc: Hide bibliography (when shown)</li>
+            </ul>
+        </div>
     </div>
+    <div id="modal">modal text</div>
 
 <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
 <script src="pdf/pdf.js" type="text/javascript" charset="utf-8"></script>
@@ -79,17 +108,15 @@
     }
 
     function getValue() {
-        var s = '';
-        var fables = [];
+        var body = '';
+        var size = [];
         for (var node = content.firstChild; node; node = node.nextSibling) {
-            const v = node.getValue();
-            if (v) {
-                s += v + '\n';
-                fables += '%fable ' + node.id + ' ' + (v.length + 1) + '\n';
-            } else
-                fables += '%fable ' + node.id + ' 0\n';
+            var s = node.getValue();
+
+            size.push(s.length);
+            body += s;
         }
-        return fables + s
+        return size.join() + '\n' + body;
     }
 
     function blurAll() {
@@ -105,8 +132,17 @@
 
     function run(entry) {
         const value = getValue();
+        const index = Array.from(content.children).indexOf(entry);
+
         if (backend)
-            backend("run " + entry.id, value);
+            backend("run " + entry.id + " " + index, value);
+    }
+
+    function bibliography() {
+        if (backend)
+            backend("bibl", "");
+        else
+            alert("Could not request bibliography since backend is not connected");
     }
 
     function addCell(prevEntry) {
@@ -115,17 +151,19 @@
         var output = document.createElement('div');
         var errors = document.createElement('div');
         var canvas = document.createElement('canvas');
+        var border = document.createElement('div');
 
         entry.classList.add("entry");
         editor.classList.add("editor");
         output.classList.add("output");
         errors.classList.add("errors");
+        border.classList.add("border");
 
         canvas.width = canvas.height = 0;
 
         id = nextId();
         editor.id = "editor_" + id;
-        output.id = "outpit_" + id;
+        output.id = "output_" + id;
         entry.id = "entry_" + id;
         canvas.id = "canvas_" + id;
         errors.id = "errors_" + id;
@@ -133,7 +171,10 @@
         output.appendChild(canvas);
         output.appendChild(errors);
 
-        entry.appendChild(editor);
+        border.appendChild(editor);
+
+        entry.appendChild(border);
+        //entry.appendChild(editor);
         entry.appendChild(output);
 
         if (prevEntry && prevEntry.nextSibling)
@@ -144,7 +185,13 @@
         return {'editor': editor, 'output': output, 'entry': entry, 'canvas': canvas};
     }
 
-    function addEditor(prevEntry, body, focus) {
+    function clearOutput(cell) {
+        cell.canvas.width = 0;
+        cell.canvas.height = 0;
+        cell.output.innerText = "";
+    }
+
+    function addEditor(prevEntry, body) {
         var cell = addCell(prevEntry, body);
         var editor = ace.edit(cell.editor.id);
 
@@ -170,10 +217,10 @@
             bindKey: 'shift-Enter',
             exec: function(editor) {
                 run(cell.entry);
-                if (cell.entry.nextSibling)
-                    cell.entry.nextSibling.focusEditor();
-                else
-                    addEditor(cell.entry, "", true);
+
+                if (!cell.entry.nextSibling)
+                    addEditor(cell.entry, "");
+                cell.entry.nextSibling.focusEditor();
             },
             readOnly: true
         });
@@ -181,10 +228,24 @@
             name: 'append',
             bindKey: 'ctrl-=',
             exec: function(editor) {
-                if (cell.entry.nextSibling)
-                    addEditor(cell.entry, "", true);
-                else
-                    addEditor(cell.entry, "", true);
+                addEditor(cell.entry, "").focusEditor();
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'delete',
+            bindKey: 'ctrl--',
+            exec: function(editor) {
+                if (editor.getValue()) {
+                    alert("Cannot delete a non-empty pagelet");
+                    return;
+                }
+                var entry = cell.entry;
+                var next = entry.nextSibling;
+
+                entry.parentNode.removeChild(entry);
+                if (next)
+                    next.focusEditor();
             },
             readOnly: true
         });
@@ -214,15 +275,24 @@
             },
             readOnly: true
         });
+        editor.commands.addCommand({
+            name: 'bib',
+            bindKey: 'ctrl-b',
+            exec: function(editor) {
+                bibliography();
+            },
+            readOnly: true
+        });
 
+        editor.getSession().setUseWrapMode(true);
+        //editor.renderer.setScrollMargin(20, 20);
+        editor.container.style.lineHeight = 2;
+        editor.renderer.updateFontSize();
         //editor.setHighlightActiveLine(false);
         cell.editor.style.background = "#F0F0D8";
 
         if (body)
             editor.setValue(body, -1);
-
-        if (focus)
-            editor.focus();
 
         return cell.entry;
     }
@@ -250,13 +320,11 @@
 
             if (data.header == "load") {
                 var prev = null;
-                for (var i = 0; i < data.body.length - 1; i++) {
-                    prev = addEditor(prev, data.body[i].slice(0, -1), false);
-                };
-                if (data.body.length > 0)
-                    addEditor(prev, data.body[data.body.length - 1].slice(0, -1), true);
-                else
-                    addEditor(prev, "", true);
+                for (var i = 0; i < data.body.length; i++)
+                    prev = addEditor(prev, data.body[i]);
+                if (data.body.length == 0)
+                    prev = addEditor(prev, "");
+                prev.focusEditor();
             }
 
             if (data.header == 'pdf') {
@@ -268,6 +336,10 @@
                 if (pdf)
                     loadPdf(canvas, pdf)
                 loadErrors(id, errors);
+            }
+
+            if (data.header == 'bibl') {
+                toggleBibliography(data.body);
             }
         };
 
@@ -345,10 +417,29 @@
         document.title = "Fable: " + filename + postfix;
     }
 
+    function toggleBibliography(text) {
+        var modal = document.getElementById('modal');
+        var close = function(e) {
+            if (e.key == 'Escape' || e.key=='Esc' || e.keyCode == 27) {
+                window.removeEventListener('keydown', close, true);
+                e.preventDefault();
+                modal.style.display = 'none';
+                return false;
+            }
+        };
+        modal.innerText = text;
+        window.addEventListener('keydown', close, true);
+
+        if (modal.style.display == 'block')
+            modal.style.display = 'none';
+        else
+            modal.style.display = 'block';
+    }
+
     setTitle(true);
     bridge();
     if (!backend)
-        addEditor(null, "", true);
+        addEditor(null, "").focusEditor();
 </script>
 </body>
 </html>
