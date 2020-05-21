@@ -24,6 +24,9 @@
         width: 22cm;
         max-width: 100%;
     }
+    .ace_hidden-cursors {
+        opacity: 0;
+    }
     #content {
         width: 100%;
     }
@@ -37,8 +40,6 @@
         padding: 1em;
         width: 100%;
         min-height: 1em;
-    }
-    .editor {
     }
     .output {
         margin-top: 2em;
@@ -75,7 +76,18 @@
     <div id="flex">
         <div id="visible_body">
             <h1 id="title">title</h1>
+            <div class="header">
+                <div id="prebody">
+\ifdefined\fable
+    \documentclass[12pt,varwidth=18cm,border={12pt 12pt 12pt 12pt}]{standalone}
+\else
+    \documentclass{article}
+\fi
+</div>
+            </div>
+            <div id="begin">\begin{document}</div><br/>
             <div id="content"></div>
+            <div id="end">\end{document}</div>
             <h2>Shortcuts:</h2>
             <ul>
                 <li>Shift+Enter: Run current pagelet</li>
@@ -98,6 +110,7 @@
 <script type="text/javascript" >
     var editors = 0;
     var content = document.getElementById('content');
+    var prebody = document.getElementById('prebody');
     var backend = null;
 
     function nextId() {
@@ -110,13 +123,17 @@
     function getValue() {
         var body = '';
         var size = [];
+
         for (var node = content.firstChild; node; node = node.nextSibling) {
             var s = node.getValue();
 
             size.push(s.length);
             body += s;
         }
-        return size.join() + '\n' + body;
+
+        var preamble = prebody.getValue();
+
+        return [preamble, size.join() + '\n' + body];
     }
 
     function blurAll() {
@@ -125,22 +142,22 @@
     }
 
     function save() {
-        const value = getValue();
+        const [preamble, data] = getValue();
         if (backend)
-            backend("save", value);
+            backend(["save"], preamble, data);
     }
 
     function run(entry) {
-        const value = getValue();
-        const index = Array.from(content.children).indexOf(entry);
+        const preamble = prebody.getValue();
+        const text = entry.getValue();
 
         if (backend)
-            backend("run " + entry.id + " " + index, value);
+            backend(["run", entry.id], preamble, text);
     }
 
     function bibliography() {
         if (backend)
-            backend("bibl", "");
+            backend(["bibl"], '', '');
         else
             alert("Could not request bibliography since backend is not connected");
     }
@@ -191,9 +208,8 @@
         cell.output.innerText = "";
     }
 
-    function addEditor(prevEntry, body) {
-        var cell = addCell(prevEntry, body);
-        var editor = ace.edit(cell.editor.id);
+    function addAce(elementId, bodyText) {
+        var editor = ace.edit(elementId);
 
         editor.setTheme("ace/theme/dawn");
         editor.session.setMode("ace/mode/latex");
@@ -203,6 +219,76 @@
         editor.setOptions({
             maxLines: Infinity
         });
+	
+        editor.getSession().setUseWrapMode(true);
+
+        if (bodyText)
+            editor.setValue(bodyText, -1);
+
+        editor.commands.addCommand({
+            name: 'save',
+            bindKey: 'ctrl-s',
+            exec: function(editor) {
+                save();
+            },
+            readOnly: true
+        });
+        editor.commands.addCommand({
+            name: 'bib',
+            bindKey: 'ctrl-b',
+            exec: function(editor) {
+                bibliography();
+            },
+            readOnly: true
+        });
+
+        editor.setHighlightActiveLine(false);
+        editor.setHighlightGutterLine(false);
+
+        var container = document.getElementById(elementId);
+        container.style.background = "#F0F0D8";
+
+        return editor;
+    }
+
+    function addDocument() {
+        var begin = addAce("begin");
+        var end = addAce("end");
+
+        begin.setReadOnly(true);
+        end.setReadOnly(true);
+
+        begin.renderer.$cursorLayer.element.style.display = "none";
+        end.renderer.$cursorLayer.element.style.display = "none";
+    }
+
+    function addPreamble(bodyText) {
+        var editor = addAce("prebody", bodyText);
+
+        var gotoNext = function(editor) {
+            content.firstChild.focusEditor();
+        };
+
+        editor.commands.addCommand({
+            name: 'run',
+            bindKey: 'shift-Enter',
+            exec: gotoNext
+        });
+        editor.commands.addCommand({
+            name: 'next',
+            bindKey: 'ctrl-Down',
+            exec: gotoNext
+        });
+
+        prebody.getValue = () => {
+            return editor.getValue();
+        };
+    }
+
+    function addEditor(prevEntry, body) {
+        var cell = addCell(prevEntry, body);
+        var editor = addAce(cell.editor.id, body);
+
 	    cell.entry.focusEditor = () => {
 	        editor.focus();
 	    };
@@ -212,6 +298,7 @@
         cell.entry.getValue = () => {
             return editor.getValue();
         };
+
         editor.commands.addCommand({
             name: 'run',
             bindKey: 'shift-Enter',
@@ -267,29 +354,9 @@
             },
             readOnly: true
         });
-        editor.commands.addCommand({
-            name: 'save',
-            bindKey: 'ctrl-s',
-            exec: function(editor) {
-                save();
-            },
-            readOnly: true
-        });
-        editor.commands.addCommand({
-            name: 'bib',
-            bindKey: 'ctrl-b',
-            exec: function(editor) {
-                bibliography();
-            },
-            readOnly: true
-        });
 
-        editor.getSession().setUseWrapMode(true);
-        //editor.renderer.setScrollMargin(20, 20);
         editor.container.style.lineHeight = 2;
         editor.renderer.updateFontSize();
-        //editor.setHighlightActiveLine(false);
-        cell.editor.style.background = "#F0F0D8";
 
         if (body)
             editor.setValue(body, -1);
@@ -306,10 +373,15 @@
         var filename = params.get('filename');
 
         var ws = new WebSocket(url);
+
+        var send = function(command, preamble, body) {
+            var message = JSON.stringify([filename, command, preamble, body]);
+            ws.send(message);
+        };
+
         ws.onopen = function(event) {
             console.log('Established ws connection :)')
-            message = [filename, 'load', ''].join('\n')
-            ws.send(message);
+            send(['load'], '', '');
         };
 
         ws.onmessage = function(event) {
@@ -319,11 +391,16 @@
             console.log('Message arrived: ' + data.header)
 
             if (data.header == "load") {
+                const [preamble, body] = data.contents;
+
+                addPreamble(preamble);
+
                 var prev = null;
-                for (var i = 0; i < data.body.length; i++)
-                    prev = addEditor(prev, data.body[i]);
-                if (data.body.length == 0)
+                for (var i = 0; i < body.length; i++)
+                    prev = addEditor(prev, body[i]);
+                if (body.length == 0)
                     prev = addEditor(prev, "");
+
                 prev.focusEditor();
             }
 
@@ -333,7 +410,7 @@
                 var pdf = data.body.pdf;
                 var errors = data.body.errors;
 
-                if (pdf)
+                if (pdf && !data.body.is_small)
                     loadPdf(canvas, pdf)
                 loadErrors(id, errors);
             }
@@ -355,10 +432,7 @@
             console.log(event);
         }
 
-        backend = function(command, data) {
-            var message = [filename, command, data].join("\n");
-            ws.send(message);
-        };
+        backend = send;
     }
 
     function loadPdf(canvas, data) {
@@ -438,8 +512,11 @@
 
     setTitle(true);
     bridge();
-    if (!backend)
-        addEditor(null, "").focusEditor();
+    addDocument();
+    if (!backend) {
+        addPreamble();
+        addEditor().focusEditor();
+    }
 </script>
 </body>
 </html>

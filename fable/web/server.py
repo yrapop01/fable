@@ -1,6 +1,6 @@
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from fable import config
-from fable import tex
+from fable import script
 import os
 import sys
 import json
@@ -13,18 +13,16 @@ class Events(WebSocket):
     def handleMessage(self):
         try:
             try:
-                filename, instruction, data = self.data.split('\n', maxsplit=2)
+                filename, arguments, preamble, body = json.loads(self.data)
             except ValueError:
                 print('Less than 3 lines in data', file=sys.stderr)
                 return
 
-            if not instruction:
+            if not arguments:
                 print('Empty instruction', file=sys.stderr)
                 return
 
-            arguments = instruction.split()
             command = arguments[0]
-
             if command not in {'run', 'save', 'load', 'bibl'}:
                 print('Uknown command', command, file=sys.stderr)
                 return
@@ -34,12 +32,12 @@ class Events(WebSocket):
             path = os.path.join(home, name)
 
             if command == 'load':
-                response = {'header': 'load', 'body': tex.load(path)}
+                response = {'header': 'load', 'contents': script.load(path)}
                 self.sendMessage(json.dumps(response))
                 return
 
             if command == 'save':
-                tex.save(path, data)
+                script.save(path, preamble, body)
                 return
 
             if command == 'bibl':
@@ -58,15 +56,13 @@ class Events(WebSocket):
                 return
 
             if command == 'run':
-                if len(arguments) < 3:
-                    print('Missing entry index in run command', file=sys.stderr)
+                if len(arguments) < 2:
+                    print('Missing entry id in run command', file=sys.stderr)
                     return
                 entry_id = arguments[1]
-                entry_index = int(arguments[2])
-                tex.save(path, data)
-                pdf, errors = tex.run(data, entry_index)
+                pdf, errors, is_small = script.run(preamble, body)
                 b64 = base64.b64encode(pdf).decode()
-                body = {'pdf': b64, 'errors': errors}
+                body = {'pdf': b64, 'errors': errors, 'is_small': is_small}
                 response = {'header': 'pdf', 'id': entry_id, 'body': body}
                 self.sendMessage(json.dumps(response))
         except Exception:

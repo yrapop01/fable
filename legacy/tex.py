@@ -53,22 +53,25 @@ def save(path, data):
     with open(path, 'w') as f:
         f.write(body)
 
-def reduce_packages(body):
-    packages = []
+def reduce_preamble(body):
+    groups = group_pipeline(token_pipeline(body))
+    commands = []
 
-    for line in body.splitlines():
-        if line.startswith('\\usepackage'):
-            packages.append(line)
+    KEEP = {'usepackage', 'theoremstyle', 'newtheorem', 'newcommand', 'renewcommand'}
 
-    return packages
+    for group in groups:
+        if group[0].startswith('\\') and group[0][1:] in KEEP:
+            commands.append(''.join(group))
+
+    return commands
 
 def reduce_commands(body):
     groups = group_pipeline(token_pipeline(body))
     commands = []
 
     KEEP = {'setcopyright', 'acmYear', 'acmDOI', 'acmConference',
-            'acmBooktitle', 'acmPrice', 'acmISBN', 'author', 'email', 'newcommand',
-            'renewcommand', 'AtBeginDocument', 'endinput', 'ccsdesc', 'keywords', 'title'}
+            'acmBooktitle', 'acmPrice', 'acmISBN', 'author', 'email',
+            'AtBeginDocument', 'endinput', 'ccsdesc', 'keywords', 'title'}
 
     ENVIR = {'abstract'}
 
@@ -79,6 +82,27 @@ def reduce_commands(body):
             commands.append(''.join(group))
 
     return commands
+
+def keep_silent(body):
+    groups = group_pipeline(token_pipeline(body))
+
+    ENVIR = ['CCSXML', 'abstract']
+    CMD = {'documentclass', 'setcopyright', 'acmYear', 'acmDOI', 'acmConference', 'ifdef',
+           'acmBooktitle', 'acmPrice', 'acmISBN', 'author', 'email', 'newcommand',
+           'renewcommand', 'AtBeginDocument', 'endinput', 'ccsdesc', 'keywords',
+           'title', 'usepackage', 'fxsetup', 'newtheorem', 'theoremstyle', 'usepackage'}
+
+    output = []
+    silent = True
+    for group in groups:
+        if len(group) > 2 and group[0] == '\\begin' and group[1][0] == '{' and group[1][-1] == '}' and group[1][1:-1] in ENVIR:
+            output.append(group)
+        elif group[0].startswith('\\') and group[0][1:] in CMD:
+            output.append(group)
+        elif any(s.strip() for s in group):
+            silent = False
+
+    return output, silent
 
 def comments(s):
     comment = False
@@ -169,28 +193,26 @@ def verb(s):
 
 def join_commands(s):
     prev = ''
-    opt = []
-    req = []
+    args = []
     for c in s:
         if len(prev) > 1 and prev[0] == '\\' and prev[1].isalpha():
             if len(c) >= 2 and c[0] == '{' and c[-1] == '}':
-                req.append(c)
+                args.append(c)
                 continue
-            if len(req) == 0 and len(c) >= 2 and c[0] == '[' and c[-1] == ']':
-                opt.append(c)
+            if len(c) >= 2 and c[0] == '[' and c[-1] == ']':
+                args.append(c)
                 continue
 
-            yield [prev] + opt + req
+            yield [prev] + args
             prev = c
-            opt = []
-            req = []
+            args = []
             continue
 
         if prev:
             yield [prev]
         prev = c
     if prev:
-        yield [prev] + opt + req
+        yield [prev] + args
 
 def newcommand(s):
     prev = []
@@ -234,7 +256,7 @@ def is_blank(body):
     envirs = group_pipeline(token_pipeline(body))
 
     SKIP_ENVIR = ['CCSXML', 'abstract']
-    SKIP_CMD = {'documentclass', 'setcopyright', 'acmYear', 'acmDOI', 'acmConference',
+    SKIP_CMD = {'documentclass', 'setcopyright', 'acmYear', 'acmDOI', 'acmConference', 'ifdef',
                 'acmBooktitle', 'acmPrice', 'acmISBN', 'author', 'email', 'newcommand',
                 'renewcommand', 'AtBeginDocument', 'endinput', 'ccsdesc', 'keywords',
                 'title', 'usepackage', 'fxsetup'}
@@ -250,19 +272,25 @@ def is_blank(body):
     return True
 
 def run(data, entry_index):
-    entries = split_unescaped(data)
-    packages = ['\\usepackage{fancyvrb}', '\\usepackage{color}']
-    commands = []
+    try:
+        entries = split_unescaped(data)
 
-    for i, contents in enumerate(entries):
-        if i == entry_index:
-            if is_blank(contents):
-                return b'', ''
-            return render_standalone(packages, commands, contents)
-        packages += reduce_packages(contents)
-        commands += reduce_commands(contents)
+        if entry_index >= len(entries):
+            raise Exception(f'Entry index {entry_index} is too big')
 
-    raise Exception(f'Entry with id {entry_id} was not found')
+        preamble = []
+        for contents in entries[:entry_index]:
+            output, _ = keep_silent(contents)
+            preamble.extend(output)
+
+        _, silent = keep_silent(entries[entry_index])
+        if silent:
+            return b'', ''
+        else:
+            return render_standalone(preamble, entries[entry_index])
+    except Exception as ex:
+        print(ex)
+        return b'', 'Fable:' + str(ex)
 
 class PersistentDirectory:
     def __init__(self, *args, **kw):
@@ -305,44 +333,23 @@ def latex_errors(path):
         print('ERROR: LaTeX log file was not found', flush=True)
         return ''
 
-def input_files(contents):
-    INPUT = {'\\input', '\\includegraphics'}
-    files = []
-
-    try:
-        commands = join_commands(token_pipeline(contents))
-        for command in commands:
-            if command[0] in INPUT:
-                files.append(command[-1][1:-1])
-    except Exception as ex:
-        print(ex, flush=True)
-
-    return files
-
-def render_standalone(packages, commands, contents):
-    text = STANDALONE.format(packages='\n'.join(packages),
-                             commands='\n'.join(commands),
-                             contents=contents)
-
+def render_standalone(preamble, contents):
     with tempdir(delete=False) as d:
-        print('fullpath', d.fullpath)
-        path = os.path.join(d.fullpath, 'text.tex')
+        text = STANDALONE.format(preamble=preamble,
+                                 contents=contents,
+                                 fableout=d.fullpath)
 
-        files = input_files(contents)
+        path = os.path.join(d.fullpath, 'text.tex')
+        print(path)
 
         with open(path, 'w') as f:
             f.write(text)
 
-        if config.bibl:
-            files.append(config.bibl)
-
         home = os.path.expanduser(config.home)
-        for name in files:
-            src = os.path.join(home, name)
-            dst = os.path.join(d.fullpath, name)
-            os.symlink(src, dst)
+        args = [config.exec, config.args] + ['-interaction=batchmode',
+                f'-output-directory={d.fullpath}', path]
         try:
-            subprocess.check_output([config.exec, '-interaction=batchmode', config.args, 'text.tex'], cwd=d.fullpath)
+            subprocess.check_output(args, cwd=home)
         except subprocess.CalledProcessError as ex:
             print('LaTeX returned non zero code', flush=True)
             return b'', latex_errors(os.path.join(d.fullpath, 'text.log'))

@@ -1,4 +1,5 @@
 from setuptools import setup
+from fable.config import VERSION
 import os
 
 VERSION = '1.0'

@@ -2,6 +2,8 @@ import os
 import sys
 import json
 
+VERSION = "1.0"
+
 HOME = os.path.join(os.path.expanduser('~'), '.config')
 FOLD = os.path.join(HOME, 'fable')
 CONF = os.path.join(FOLD, 'conf.json')
