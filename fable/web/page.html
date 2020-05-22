@@ -46,6 +46,13 @@
         margin-bottom: 2em;
         margin-left: 2em;
     }
+    .canvas, .errors {
+        display: none;
+    }
+    .output:empty {
+        margin: 0;
+    }
+
     .disabled {
         pointer-events: none;
         opacity: 0.5;
@@ -173,10 +180,9 @@
         entry.classList.add("entry");
         editor.classList.add("editor");
         output.classList.add("output");
+        canvas.classList.add("canvas");
         errors.classList.add("errors");
         border.classList.add("border");
-
-        canvas.width = canvas.height = 0;
 
         id = nextId();
         editor.id = "editor_" + id;
@@ -364,6 +370,13 @@
         return cell.entry;
     }
 
+    function toggleDisplay(element, display) {
+        if (display)
+            element.style.display = "block";
+        else
+            element.style.display = "none";
+    }
+
     function bridge() {
         var params = new URLSearchParams(window.location.search);
         if (!params.has('port') || !params.has('filename'))
@@ -410,8 +423,10 @@
                 var pdf = data.body.pdf;
                 var errors = data.body.errors;
 
-                if (pdf && !data.body.is_small)
+                if (!data.body.is_small)
                     loadPdf(canvas, pdf)
+
+                toggleDisplay(canvas, !data.body.is_small);
                 loadErrors(id, errors);
             }
 
@@ -475,6 +490,7 @@
         } else {
             element.innerText = '';
         }
+        toggleDisplay(element, errors);
     }
 
     function setTitle(connected) {

@@ -86,6 +86,8 @@ def is_small(pdf):
 def run(preamble, body):
     try:
         pdf, errors = render_standalone(preamble, body)
+        if not pdf:
+            return pdf, errors, True
         return pdf, errors, is_small(pdf)
     except Exception as ex:
         print('Error:', ex)
